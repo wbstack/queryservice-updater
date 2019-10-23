@@ -11,8 +11,8 @@ $getEnvOrFail = function( $name ) {
 	return $e;
 };
 
-$apiEndpointGetBatches = 'http://api:80/backend/qs/getBatches';
-$apiEndpointMarkBatchesDone = 'http://api:80/backend/qs/markDone';
+$apiEndpointGetBatches = 'http://' . getenv( 'PLATFORM_API_BACKEND_HOST' ) . '/backend/qs/getBatches';
+$apiEndpointMarkBatchesDone = 'http://' . getenv( 'PLATFORM_API_BACKEND_HOST' ) . '/backend/qs/markDone';
 
 $isLocalHostOnly = getenv('IS_LOCALHOST_ONLY');
 
