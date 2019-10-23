@@ -7,7 +7,7 @@ cd /tmp/src && \
 composer install --no-dev --no-progress --optimize-autoloader
 
 
-FROM gcr.io/wbstack/queryservice:0.1
+FROM gcr.io/wbstack/queryservice:0.10
 
 RUN apk add php php-json
 
