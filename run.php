@@ -41,16 +41,18 @@ while ( true ) {
         $command .= ' -N '; // -N option allows Updater script to run in parallel with regular Updater service without port conflict.
         $command .= ' --';
         // TODO is this request counting as external traffic? if so, it shouldn't be...
+        // TODO need the updater to pass a HOST header and use the internal host =]
         if($isLocalHostOnly) {
             // Internal host for docker-compose usage...
             // NOTE: this will ONLY work for the first wiki created.
             // TODO: figure out if I can make this work nicely for all wikis....
             $command .= ' --wikibaseHost ' . escapeshellcmd( 'mediawiki' );
+            $command .= ' --wikibaseScheme http';
         } else {
             $command .= ' --wikibaseHost ' . escapeshellcmd( $batch->wiki->domain );
+            $command .= ' --wikibaseScheme https';
         }
         $command .= ' --conceptUri http://' . escapeshellcmd( $batch->wiki->domain );
-        $command .= ' --wikibaseScheme http';
         $command .= ' --entityNamespaces ' . escapeshellcmd( '120,122' );
         $command .= ' --ids ' . escapeshellcmd( $batch->entityIds );
         //Note: --verbose added to the end will output verbose output
