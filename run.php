@@ -13,6 +13,7 @@ $getEnvOrFail = function( $name ) {
 
 $apiEndpointGetBatches = 'http://' . getenv( 'PLATFORM_API_BACKEND_HOST' ) . '/backend/qs/getBatches';
 $apiEndpointMarkBatchesDone = 'http://' . getenv( 'PLATFORM_API_BACKEND_HOST' ) . '/backend/qs/markDone';
+$apiEndpointMarkBatchesFailed = 'http://' . getenv( 'PLATFORM_API_BACKEND_HOST' ) . '/backend/qs/markFailed';
 
 $isLocalHostOnly = getenv('IS_LOCALHOST_ONLY');
 
@@ -30,6 +31,7 @@ while ( true ) {
     }
     $batches = json_decode( $result->body );
     $successBatches = [];
+    $failBatches = [];
 
     // Try to write batches to backend SPARQL endpoints
     foreach( $batches as $batch ) {
@@ -65,20 +67,30 @@ while ( true ) {
         }
         if( $execReturn !== 0 ) {
             echo "exec return non 0 exit code: " . $execReturn . "\n";
+            $failBatches[] = $batch->id;
         } else {
             $successBatches[] = $batch->id;
         }
     }
 
-
-	// Mark batches done
-    if(!empty($successBatches)) {
-        $result = Requests::post($apiEndpointMarkBatchesDone . '?' . http_build_query(['batches' => implode(',', $successBatches)]));
+    // Mark batches failed
+    if(!empty($failBatches)) {
+        $result = Requests::post($apiEndpointMarkBatchesFailed . '?' . http_build_query(['batches' => implode(',', $successBatches)]));
         if(!$result->success) {
             var_dump($result->success);die();
-            die("ERROR, failed to markBatchesDone using API");
+            die("ERROR, failed to markBatchesFailed using API");
         }
     }
+
+
+	// Mark batches done
+//    if(!empty($successBatches)) {
+//        $result = Requests::post($apiEndpointMarkBatchesDone . '?' . http_build_query(['batches' => implode(',', $successBatches)]));
+//        if(!$result->success) {
+//            var_dump($result->success);die();
+//            die("ERROR, failed to markBatchesDone using API");
+//        }
+//    }
 
     // Wait some time?
 	$endPass = time();
