@@ -22,14 +22,24 @@ echo "Starting loop\n";
 // TODO also perhaps this should be in something lighter than php..
 while ( true ) {
 	$startPass = time();
+	$batches = [];
+	$lastBackendApiRequestFailed = false;
 
 	// Get batches
     //TODO UAs and access tokens?
-    $result = Requests::get($apiEndpointGetBatches);
-    if(!$result->success) {
-        die("ERROR, failed to getBatches from API");
+    try{
+        $result = Requests::get($apiEndpointGetBatches);
+        if(!$result->success) {
+            throw new Requests_Exception ( 'Result did not return a success:' . json_encode( $result ), 'custom' );
+        }
+        $batches = json_decode( $result->body );
     }
-    $batches = json_decode( $result->body );
+    catch ( Requests_Exception $reqException ) {
+        $batches = [];
+        $lastBackendApiRequestFailed = true;
+        echo "Api call failed with Requests_Exception: " . $reqException->getType() . ': ' . $reqException->getMessage();
+    }
+
     $successBatches = [];
     $failBatches = [];
 
@@ -83,6 +93,7 @@ while ( true ) {
     }
 
 
+    // TODO it would be good to re enable marking batches as done....
 	// Mark batches done
 //    if(!empty($successBatches)) {
 //        $result = Requests::post($apiEndpointMarkBatchesDone . '?' . http_build_query(['batches' => implode(',', $successBatches)]));
@@ -97,9 +108,14 @@ while ( true ) {
 	$timeRunning = $endPass - $startPass;
 	$configPassTime = $getEnvOrFail( 'PASS_TIME' );
 	if ( $timeRunning < $configPassTime ) {
-		$sleepFor = $configPassTime - $timeRunning;
-		echo "Sleeping for {$sleepFor} seconds. Config pass time {$configPassTime}\n";
-		sleep( $sleepFor );
-	}
+	    if( $lastBackendApiRequestFailed ) {
+            $sleepFor = $configPassTime + 5;
+            echo "Sleeping for {$sleepFor} seconds. Config pass time {$configPassTime} + 5 (because of failed api request)\n";
+        } else {
+            $sleepFor = $configPassTime - $timeRunning;
+            echo "Sleeping for {$sleepFor} seconds. Config pass time {$configPassTime}\n";
+        }
+        sleep( $sleepFor );
+    }
 
 }
