@@ -37,7 +37,8 @@ while ( true ) {
     catch ( Requests_Exception $reqException ) {
         $batches = [];
         $lastBackendApiRequestFailed = true;
-        echo "Api call failed with Requests_Exception: " . $reqException->getType() . ': ' . $reqException->getMessage();
+        fwrite(STDERR, "API call failed with Requests_Exception: " . $reqException->getType() . ': ' . $reqException->getMessage() . PHP_EOL);
+
     }
 
     $successBatches = [];
@@ -72,11 +73,12 @@ while ( true ) {
         // TODO detect failures and do not update the lasteventloggingid in blazegraph
         echo $command."\n";
         exec( $command, $execOutput, $execReturn );
-        foreach( $execOutput as $outputLine ) {
-            echo $outputLine . "\n";
-        }
         if( $execReturn !== 0 ) {
-            echo "exec return non 0 exit code: " . $execReturn . "\n";
+            fwrite(STDERR, "exec return non 0 exit code: " . $execReturn . "\n");
+            foreach( $execOutput as $outputLine ) {
+                fwrite(STDERR, $outputLine . "\n");
+
+            }
             $failBatches[] = $batch->id;
         } else {
             $successBatches[] = $batch->id;
