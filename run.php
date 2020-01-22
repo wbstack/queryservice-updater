@@ -81,7 +81,7 @@ while ( true ) {
             $command .= ' --wikibaseScheme https';
         }
         $command .= ' --conceptUri http://' . escapeshellcmd( $batch->wiki->domain );
-        $command .= ' --entityNamespaces ' . escapeshellcmd( '120,122' );
+        $command .= ' --entityNamespaces ' . escapeshellcmd( '120,122,146' );
         $command .= ' --ids ' . escapeshellcmd( $batch->entityIds );
         //Note: --verbose added to the end will output verbose output
 
