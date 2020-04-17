@@ -9,8 +9,10 @@ import java.util.concurrent.TimeUnit;
 
 class Update {
 
+    private static final String USER_AGENT = "WBStack Query Service Updater";
+
     private static String wbStackApiEndpoint;
-    private static long wbStackBatchSleep;
+    private static long wbStackSleepBetweenApiCalls;
 
     private static void setValuesFromEnvOrDie() {
         if( System.getenv("WBSTACK_API_ENDPOINT") == null || System.getenv("WBSTACK_BATCH_SLEEP") == null ) {
@@ -19,7 +21,7 @@ class Update {
         }
 
         wbStackApiEndpoint = System.getenv("WBSTACK_API_ENDPOINT");
-        wbStackBatchSleep = Integer.parseInt(System.getenv("WBSTACK_BATCH_SLEEP"));
+        wbStackSleepBetweenApiCalls = Integer.parseInt(System.getenv("WBSTACK_BATCH_SLEEP"));
     }
 
     public static void main(String[] args) throws InterruptedException {
@@ -27,104 +29,87 @@ class Update {
 
         // TODO actually set to run for 1 hour or something?
         while (true) {
-
-            // Get the list of batches from the API
-            String apiResultString = null;
-
-            URL obj = null;
-            try {
-                obj = new URL(wbStackApiEndpoint);
-                HttpURLConnection con = (HttpURLConnection) obj.openConnection();
-                con.setRequestMethod("GET");
-                con.setRequestProperty("User-Agent", "WBStack Query Service Updater");
-                int responseCode = con.getResponseCode();
-                if( responseCode != 200 ) {
-                    System.err.println("Got non 200 response code: " + responseCode);
-                    TimeUnit.SECONDS.sleep(wbStackBatchSleep);
-                    continue;
-                }
-                BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
-                String inputLine;
-                StringBuilder response = new StringBuilder();
-                while ((inputLine = in.readLine()) != null) {
-                    response.append(inputLine);
-                }
-                in.close();
-                apiResultString = response.toString();
-            } catch (IOException e) {
-                e.printStackTrace();
-                TimeUnit.SECONDS.sleep(wbStackBatchSleep);
-                continue;
-            }
-
-            // Decode the API response into some Java objects
-            Gson gson = new GsonBuilder().setPrettyPrinting().create();
-            JsonElement batches = null;
-            Reader reader = new StringReader(apiResultString);
-            // Convert JSON to JsonElement, and later to String
-            batches = gson.fromJson(reader, JsonElement.class);
-
-            if (batches == null) {
-                //System.out.println("No batches (null), so sleeping");
-                TimeUnit.SECONDS.sleep(wbStackBatchSleep);
-                continue;
-            }
-
-            JsonArray batchesArray = batches.getAsJsonArray();
-            if (batchesArray.size() == 0) {
-                //System.out.println("No batches (0), so sleeping");
-                TimeUnit.SECONDS.sleep(wbStackBatchSleep);
-                continue;
-            }
-
-            // Iterate through the batches
-            for (JsonElement jsonElement : batchesArray) {
-                // Get the values for the batch from the JSON
-                JsonObject batch = jsonElement.getAsJsonObject();
-                String entityIDs = batch.get("entityIds").getAsString();
-                JsonObject wiki = batch.get("wiki").getAsJsonObject();
-                String domain = wiki.get("domain").getAsString();
-                JsonObject wikiQsNamespace = wiki.get("wiki_queryservice_namespace").getAsJsonObject();
-                String qsBackend = wikiQsNamespace.get("backend").getAsString();
-                String qsNamespace = wikiQsNamespace.get("namespace").getAsString();
-
-                // Replace them in our args
-                args = replaceValueForArg(args, "--sparqlUrl", "http://" + qsBackend + "/bigdata/namespace/" + qsNamespace + "/sparql");
-                args = replaceValueForArg(args, "--wikibaseHost", domain);
-                args = replaceValueForArg(args, "--wikibaseScheme", "https"); // TODO don't hard code this
-                args = replaceValueForArg(args, "--conceptUri", "http://" + domain); // TODO don't hard code the scheme
-                args = replaceValueForArg(args, "--entityNamespaces", "120,122,146"); // TODO don't hard code these
-                args = replaceValueForArg(args, "--ids", entityIDs);
-
-                // Run the main Update class with our altered args
-                runUpdaterWithArgs(args);
-
-                // Sleep between batches
-                // TODO be clever here and if the batches were running for longer than the sleep time, dont sleep..
-                try {
-                    TimeUnit.SECONDS.sleep(wbStackBatchSleep);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-            }
-
+            long loopStarted = System.currentTimeMillis();
+            mainLoop();
+            sleepForRemainingTimeBetweenLoops( loopStarted );
         }
 
     }
 
-    private static String[] replaceValueForArg( String[] args, String argToReplace, String newValue ) {
-        for( int i = 0; i < args.length - 1; i++)
-        {
-            if(args[i].equals(argToReplace)){
-                args[i+1] = newValue;
-                return args;
+    private static void mainLoop() {
+        // Get the list of batches from the API
+        String batchesApiResultString = null;
+        URL obj = null;
+        try {
+            obj = new URL(wbStackApiEndpoint);
+            HttpURLConnection con = (HttpURLConnection) obj.openConnection();
+            con.setRequestMethod("GET");
+            con.setRequestProperty("User-Agent", USER_AGENT);
+            int responseCode = con.getResponseCode();
+            if( responseCode != 200 ) {
+                System.err.println("Got non 200 response code: " + responseCode);
+                return;
             }
+            BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+            String inputLine;
+            StringBuilder response = new StringBuilder();
+            while ((inputLine = in.readLine()) != null) {
+                response.append(inputLine);
+            }
+            in.close();
+            batchesApiResultString = response.toString();
+        } catch (IOException e) {
+            e.printStackTrace();
+            return;
         }
 
-        // Die if we didnt manage to replace one, as something is wrong...
-        System.err.println("Failed to replace argument: " + argToReplace);
-        System.exit(1);
-        throw new RuntimeException("Should have already exited");
+        for (JsonElement batchElement : jsonStringToJsonArray( batchesApiResultString )) {
+            runBatch( batchElement );
+        }
+    }
+
+    private static void runBatch( JsonElement batchElement ) {
+        // Get the values for the batch from the JSON
+        JsonObject batch = batchElement.getAsJsonObject();
+        String entityIDs = batch.get("entityIds").getAsString();
+        JsonObject wiki = batch.get("wiki").getAsJsonObject();
+        String domain = wiki.get("domain").getAsString();
+        JsonObject wikiQsNamespace = wiki.get("wiki_queryservice_namespace").getAsJsonObject();
+        String qsBackend = wikiQsNamespace.get("backend").getAsString();
+        String qsNamespace = wikiQsNamespace.get("namespace").getAsString();
+
+        // Run the main Update class with our altered args
+        runUpdaterWithArgs(new String[] {
+                "--sparqlUrl", "http://" + qsBackend + "/bigdata/namespace/" + qsNamespace + "/sparql",
+                "--wikibaseHost", domain,
+                "--wikibaseScheme", "https",
+                "--conceptUri", "http://" + domain,
+                "--entityNamespaces", "120,122,146",
+                "--ids", entityIDs
+        });
+        // TODO on success maybe report back?
+    }
+
+    private static JsonArray jsonStringToJsonArray( String jsonString ) {
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        JsonElement batches = null;
+        Reader reader = new StringReader(jsonString);
+        // Convert JSON to JsonElement, and later to String
+        batches = gson.fromJson(reader, JsonElement.class);
+
+        if (batches == null) {
+            System.err.println("Failed to get JsonArray from jsonString (returning empty)");
+            return new JsonArray();
+        }
+
+        return batches.getAsJsonArray();
+    }
+
+    private static void sleepForRemainingTimeBetweenLoops(long timeApiRequestDone ) throws InterruptedException {
+        long secondsRunning = (System.currentTimeMillis() - timeApiRequestDone)/1000;
+        if(secondsRunning < wbStackSleepBetweenApiCalls ) {
+            TimeUnit.SECONDS.sleep(wbStackSleepBetweenApiCalls-secondsRunning);
+        }
     }
 
     private static void runUpdaterWithArgs(String[] args) {
