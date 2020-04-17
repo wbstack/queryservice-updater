@@ -9,7 +9,7 @@ import java.util.concurrent.TimeUnit;
 
 class Update {
 
-    private static final String USER_AGENT = "WBStack Query Service Updater";
+    private static final String USER_AGENT = "WBStack - Query Service - Updater";
 
     private static String wbStackApiEndpoint;
     private static long wbStackSleepBetweenApiCalls;
