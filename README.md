@@ -1,10 +1,22 @@
-TODO updater
+Try to push this upstream somehow...
 
-https://github.com/wikimedia/wikidata-query-rdf/blob/master/tools/src/main/java/org/wikidata/query/rdf/tool/options/UpdateOptions.java#L69-L74
+https://gerrit.wikimedia.org/r/#/c/wikidata/query/rdf/+/589408/
 
-    @Option(defaultToNull = true, description = "If specified must be <id> or list of <id>, comma or space separated.")
-    List<String> ids();
+**The idea of speeding up the updater from version 1**
 
-    @Option(defaultToNull = true, description = "If specified must be <start>-<end>. Ids are iterated instead of recent "
-            + "changes. Start and end are inclusive.")
-    String idrange();
+The idea of this is to avoid the JVM startup etc, and basically have an updater running all the time rather than shelling out which is what the first version glue did.
+
+I also investigated nailgun, but its not really maintained anymore so probably not a good direction to go in.
+
+This can be trialed at https://repl.it/languages/java
+Just copy the code from the class into the default Main.java there and run the 2 lines below.
+```
+javac -classpath .:/run_dir/junit-4.12.jar:target/dependency/* -d . Main.java
+java -classpath .:/run_dir/junit-4.12.jar:target/dependency/* org.wikidata.query.rdf.tool.WbStackUpdate --sparqlUrl sparql
+```
+
+This updater approach would require minimum changes to query service code and use the WHOLE of the current updater.
+Pulls of new code would be easy, the only thing we would need to look out for are changes to the params that are passed into the updater that we manipulate.
+But the runUpdater.sh could be altered to take a main class from an ENV var, and voila!
+
+TODO check with wdqs team about if there are any wdqs internals I'll mess up by doing this & get their general thoughts.
