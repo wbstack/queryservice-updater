@@ -39,27 +39,11 @@ class Update {
     private static void mainLoop() {
         // Get the list of batches from the API
         String batchesApiResultString = null;
-        URL obj = null;
         try {
-            obj = new URL(wbStackApiEndpoint);
-            HttpURLConnection con = (HttpURLConnection) obj.openConnection();
-            con.setRequestMethod("GET");
-            con.setRequestProperty("User-Agent", USER_AGENT);
-            int responseCode = con.getResponseCode();
-            if( responseCode != 200 ) {
-                System.err.println("Got non 200 response code: " + responseCode);
-                return;
-            }
-            BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
-            String inputLine;
-            StringBuilder response = new StringBuilder();
-            while ((inputLine = in.readLine()) != null) {
-                response.append(inputLine);
-            }
-            in.close();
-            batchesApiResultString = response.toString();
+            batchesApiResultString = doGetRequest( wbStackApiEndpoint );
         } catch (IOException e) {
-            e.printStackTrace();
+            // On IOException, output and go onto the next loop (with a sleep)
+            System.err.println(e.getMessage());
             return;
         }
 
@@ -67,6 +51,26 @@ class Update {
             runBatch( batchElement );
         }
     }
+
+    private static String doGetRequest( String requestUrl ) throws IOException {
+        URL obj = new URL(requestUrl);
+        HttpURLConnection con = (HttpURLConnection) obj.openConnection();
+        con.setRequestMethod("GET");
+        con.setRequestProperty("User-Agent", USER_AGENT);
+        int responseCode = con.getResponseCode();
+        if( responseCode != 200 ) {
+            throw new IOException("Got non 200 response code: " + responseCode);
+        }
+        BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+        String inputLine;
+        StringBuilder response = new StringBuilder();
+        while ((inputLine = in.readLine()) != null) {
+            response.append(inputLine);
+        }
+        in.close();
+        return response.toString();
+    }
+
 
     private static void runBatch( JsonElement batchElement ) {
         // Get the values for the batch from the JSON
