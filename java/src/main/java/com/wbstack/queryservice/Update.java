@@ -26,29 +26,27 @@ class Update {
 
     public static void main(String[] args) throws InterruptedException {
         setValuesFromEnvOrDie();
+        long loopLastStarted;
 
         // TODO actually set to run for 1 hour or something?
         while (true) {
-            long loopStarted = System.currentTimeMillis();
+            loopLastStarted = System.currentTimeMillis();
             mainLoop();
-            sleepForRemainingTimeBetweenLoops( loopStarted );
+            System.gc(); // Suggest a GC...
+            sleepForRemainingTimeBetweenLoops( loopLastStarted );
         }
 
     }
 
     private static void mainLoop() {
-        // Get the list of batches from the API
-        String batchesApiResultString = null;
+        // Get the list of batches from the API and process them
         try {
-            batchesApiResultString = doGetRequest( wbStackApiEndpoint );
+            for (JsonElement batchElement : jsonStringToJsonArray( doGetRequest( wbStackApiEndpoint ) )) {
+                runBatch( batchElement );
+            }
         } catch (IOException e) {
             // On IOException, output and go onto the next loop (with a sleep)
             System.err.println(e.getMessage());
-            return;
-        }
-
-        for (JsonElement batchElement : jsonStringToJsonArray( batchesApiResultString )) {
-            runBatch( batchElement );
         }
     }
 
