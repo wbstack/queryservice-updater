@@ -26,15 +26,27 @@ class Update {
 
     public static void main(String[] args) throws InterruptedException {
         setValuesFromEnvOrDie();
+        int count = 0;
+        int countLimit = Integer.parseInt( System.getenv("WBSTACK_LOOP_LIMIT") );
         long loopLastStarted;
+        Runtime runtime = Runtime.getRuntime();
 
         // TODO actually set to run for 1 hour or something?
-        while (true) {
+        while (count < countLimit) {
+            count++;
             loopLastStarted = System.currentTimeMillis();
             mainLoop();
-            System.gc(); // Suggest a GC...
+            long memory = runtime.totalMemory() - runtime.freeMemory();
+            System.out.println(
+                            "Loop " + count + "/" + countLimit + ". " +
+                            "Total mem:" + (runtime.totalMemory() / (1024L * 1024L)) + ". " +
+                            "Free mem:" + (runtime.freeMemory() / (1024L * 1024L)) + ". " +
+                            "Used mem:" + (memory / (1024L * 1024L)) + ". " +
+                            "Max mem:" + (runtime.maxMemory() / (1024L * 1024L)) + ". "
+            );
             sleepForRemainingTimeBetweenLoops( loopLastStarted );
         }
+        System.out.println("Finished " + count + " runs. Exiting...");
 
     }
 
