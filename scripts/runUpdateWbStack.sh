@@ -12,7 +12,6 @@ set -e
  -m com.wbstack.queryservice.Update \
  -h IGNOREDHOST \
  -n IGNOREDNAMESPACE \
- -N \
  -- \
  --wikibaseHost IGNOREDWIKIBASEHOST \
  --wikibaseScheme IGNOREDSCHEME \
