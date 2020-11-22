@@ -10,10 +10,10 @@ FROM openjdk:8-jdk-alpine
 LABEL org.opencontainers.image.source="https://github.com/wbstack/queryservice-updater"
 
 RUN addgroup -S updater && adduser -S updater -G updater \
-&& apk add bash
+&& apk add --no-cache bash
 
 # Don't set a memory limit otherwise bad things happen (OOMs)
-# TODO this was shamelessly copied from the current wmde/wikibase-docker wdqs image....
+# TODO this was shamelessly copied from the current wmde/wikibase-docker wdqs image...
 ENV MEMORY=""\
     HEAP_SIZE="1g"\
     HOST="0.0.0.0"\
