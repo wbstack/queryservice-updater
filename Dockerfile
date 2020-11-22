@@ -7,6 +7,8 @@ RUN mvn clean compile assembly:single
 
 FROM openjdk:8-jdk-alpine
 
+LABEL org.opencontainers.image.source="https://github.com/wbstack/queryservice-updater"
+
 RUN addgroup -S updater && adduser -S updater -G updater \
 && apk add bash
 
