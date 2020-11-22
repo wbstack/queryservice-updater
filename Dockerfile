@@ -1,6 +1,6 @@
 FROM maven:3.6.3-jdk-8 as jarjar
 
-COPY ./java /tmp
+COPY ./ /tmp
 WORKDIR /tmp
 RUN mvn clean compile assembly:single
 
@@ -24,11 +24,7 @@ ENV MEMORY=""\
 WORKDIR /wdqsup
 
 COPY --chown=updater:updater --from=jarjar /tmp/target/wbstack-queryservice-0.3.6-0.1-jar-with-dependencies.jar /wdqsup/wbstackqs.jar
-COPY --chown=updater:updater ./scripts/ /wdqsup/
-
-# TODO is this actually needed?
-RUN chmod +x /wdqsup/runUpdate.sh \
-&& chmod +x /wdqsup/runUpdateWbStack.sh
+COPY --chown=updater:updater ./runUpdate.sh ./runUpdateWbStack.sh /wdqsup/
 
 USER updater:updater
 
