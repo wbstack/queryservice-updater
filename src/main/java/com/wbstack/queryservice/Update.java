@@ -109,14 +109,17 @@ class Update {
         JsonElement batches = null;
         Reader reader = new StringReader(jsonString);
         // Convert JSON to JsonElement, and later to String
-        batches = gson.fromJson(reader, JsonElement.class);
-
-        if (batches == null) {
-            System.err.println("Failed to get JsonArray from jsonString (returning empty)");
+        try{
+            batches = gson.fromJson(reader, JsonElement.class);
+            if (batches == null) {
+                System.err.println("Failed to get JsonArray from jsonString (returning empty)");
+                return new JsonArray();
+            }
+            return batches.getAsJsonArray();
+        } catch (JsonSyntaxException e) {
+            System.err.println("Failed to get JSON from string:" + jsonString);
             return new JsonArray();
         }
-
-        return batches.getAsJsonArray();
     }
 
     private static void sleepForRemainingTimeBetweenLoops(long timeApiRequestDone ) throws InterruptedException {
