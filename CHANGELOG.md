@@ -1,8 +1,12 @@
 # queryservice-updater
 
-## November 2020
+## 0.3.6_2.1 - December 2020
 
-- 0.3.6_2.0 - From Github Build
+- [Handle non JSON responses from getBatches API](https://github.com/wbstack/queryservice-updater/commit/b24b813b0155837cfb3a225af694101569f55301)
+
+## 0.3.6_2.0 - November 2020
+
+- From Github Build
 
 ## May 2020
 
