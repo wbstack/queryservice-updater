@@ -1,4 +1,4 @@
-FROM maven:3.6.3-jdk-8 as jarjar
+FROM maven:3.6.3-jdk-14 as jarjar
 
 COPY ./ /tmp
 WORKDIR /tmp
