@@ -5,7 +5,7 @@ WORKDIR /tmp
 RUN mvn clean compile assembly:single
 
 
-FROM openjdk:8-jdk-alpine
+FROM openjdk:16-jdk-alpine
 
 LABEL org.opencontainers.image.source="https://github.com/wbstack/queryservice-updater"
 
