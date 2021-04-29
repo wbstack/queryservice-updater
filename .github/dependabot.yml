@@ -1,0 +1,28 @@
+version: 2
+updates:
+- package-ecosystem: github-actions
+  directory: "/"
+  schedule:
+    interval: daily
+  open-pull-requests-limit: 10
+- package-ecosystem: docker
+  directory: "/"
+  schedule:
+    interval: daily
+  open-pull-requests-limit: 10
+  ignore:
+  - dependency-name: maven
+    versions:
+    - "> 3.6.3.pre.jdk.pre.8"
+  - dependency-name: openjdk
+    versions:
+    - "> 8.pre.jdk.pre.alpine"
+- package-ecosystem: maven
+  directory: "/"
+  schedule:
+    interval: daily
+  open-pull-requests-limit: 10
+  ignore:
+  - dependency-name: org.wikidata.query.rdf:tools
+    versions:
+    - "> 0.3.6-SNAPSHOT"
