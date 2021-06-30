@@ -1,5 +1,9 @@
 # queryservice-updater
 
+## 0.3.6_2.2 - June 2021
+
+- Bump gson from 2.8.6 to 2.8.7
+
 ## 0.3.6_2.1 - December 2020
 
 - [Handle non JSON responses from getBatches API](https://github.com/wbstack/queryservice-updater/commit/b24b813b0155837cfb3a225af694101569f55301)
