@@ -1,0 +1,20 @@
+{
+	"root": true,
+	"extends": [
+		"wikimedia/server"
+	],
+	"rules": {
+		"array-bracket-spacing": "off",
+		"camelcase": [ "error", { "properties": "never" } ],
+		"computed-property-spacing": [ "error", "never" ],
+		"indent": [ "error", 4, {
+			"SwitchCase": 1,
+			"MemberExpression": "off"
+		} ],
+		"no-multi-spaces": "off",
+		"no-underscore-dangle": "off",
+		"no-unused-vars": [ "error", { "args": "none" } ],
+		"no-use-before-define": [ "error", { "classes": false } ],
+		"space-in-parens": [ "error", "never" ]
+	}
+}

@@ -100,6 +100,6 @@ MEMORY=${MEMORY:-"-Xmx${HEAP_SIZE}"}
 SPARQL_URL=$HOST/$CONTEXT/namespace/$NAMESPACE/sparql
 
 echo "Updating via $SPARQL_URL"
-exec java -cp ${CLASSPATH} ${MEMORY} ${GC_LOGS} ${LOG_OPTIONS} ${EXTRA_JVM_OPTS} \
+exec /usr/lib/jvm/java-8-openjdk-amd64/bin/java -cp ${CLASSPATH} ${MEMORY} ${GC_LOGS} ${LOG_OPTIONS} ${EXTRA_JVM_OPTS} \
      ${TIMEOUT_ARG} ${UPDATER_OPTS} \
      ${MAIN} ${ARGS} --sparqlUrl ${SPARQL_URL} "$@"
