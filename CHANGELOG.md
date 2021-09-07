@@ -1,5 +1,10 @@
 # queryservice-updater
 
+## 0.3.84_3.0 - June 2021
+
+- Rewrite the Java wrapper entirely using lots of thigns from upstream
+- Try to eliminate the memory leaks!
+
 ## 0.3.6_2.2 - June 2021
 
 - Bump gson from 2.8.6 to 2.8.7
