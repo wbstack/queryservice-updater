@@ -1,11 +1,10 @@
 var http = require('http');
-var url = require('url');
 
 var x = 0
 http.createServer(function (req, res) {
     res.writeHead(200, {'Content-Type': 'text/json'});
 
-    numEntities = 10;
+    numEntities = 20;
     entities = [];
 
     for(var i=1; i <= numEntities; ++i){
@@ -13,7 +12,7 @@ http.createServer(function (req, res) {
     }
 
     x += numEntities;
-
+    console.log(new Date().toISOString());
 
     responseObject = {
         'entityIds': entities.join(','),
