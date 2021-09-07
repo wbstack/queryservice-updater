@@ -165,7 +165,7 @@ class WbStackUpdate {
         runUpdaterWithArgs(new String[] {
                 "--sparqlUrl", "http://" + qsBackend + "/bigdata/namespace/" + qsNamespace + "/sparql",
                 "--wikibaseHost", domain,
-                "--wikibaseScheme", "http",
+                "--wikibaseScheme", "https",
                 "--conceptUri", "http://" + domain,
                 "--entityNamespaces", "120,122,146",
                 "--ids", entityIDs
