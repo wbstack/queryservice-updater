@@ -67,7 +67,7 @@ class WbStackUpdate {
     private static Closer metricsCloser;
 
     private static void setValuesFromEnvOrDie() {
-        if( System.getenv("WBSTACK_API_ENDPOINT") == null || System.getenv("WBSTACK_BATCH_SLEEP") == null ) {
+        if( System.getenv("WBSTACK_API_ENDPOINT") == null || System.getenv("WBSTACK_BATCH_SLEEP") == null || System.getenv("WBSTACK_LOOP_LIMIT") == null ) {
             System.err.println("WBSTACK_API_ENDPOINT and WBSTACK_BATCH_SLEEP environment variables must be set.");
             System.exit(1);
         }

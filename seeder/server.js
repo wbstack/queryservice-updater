@@ -1,14 +1,26 @@
 var http = require('http');
+const wbEdit = require( 'wikibase-edit' )( require( './wikibase-edit.config' ) );
 
 var x = 0
-http.createServer(function (req, res) {
+http.createServer(async function (req, res) {
     res.writeHead(200, {'Content-Type': 'text/json'});
 
     numEntities = 20;
     entities = [];
 
     for(var i=1; i <= numEntities; ++i){
-        entities.push("Q" + (i+x))
+        const { entity } = await wbEdit.entity.create({
+            type: 'item',
+            labels: {
+                'en': new Date().toISOString()
+            },
+            descriptions: {
+                'en': new Date().toDateString() + new Date().toISOString()
+            }
+        });
+
+        console.log('created item id', entity.id)
+        entities.push(entity.id)
     }
 
     x += numEntities;
@@ -17,9 +29,9 @@ http.createServer(function (req, res) {
     responseObject = {
         'entityIds': entities.join(','),
         'wiki': {
-            'domain': 'default.web.mw.localhost:8080/',
+            'domain': 'wikibase.svc',
             'wiki_queryservice_namespace': {
-                'backend': 'localhost:9999',
+                'backend': 'wdqs.svc:9999',
                 'namespace': 'wdq'
             }
         },

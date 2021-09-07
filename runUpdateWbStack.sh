@@ -9,7 +9,7 @@ set -e
 # Also pass in our custom Main class that will handle the "magic"
 # TODO also pass class path in...
 ./runUpdate.sh \
- -m com.wbstack.queryservice.Update \
+ -m org.wikidata.query.rdf.tool.WbStackUpdate \
  -h IGNOREDHOST \
  -n IGNOREDNAMESPACE \
  -- \

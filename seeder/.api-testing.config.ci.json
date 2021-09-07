@@ -1,0 +1,9 @@
+{
+	"base_uri": "http://wikibase.svc/w/",
+	"main_page": "Main_Page",
+	"root_user": {
+		"name": "admin",
+		"password": "change-this-password"
+	},
+	"secret_key": "abcdef"
+}

@@ -1,0 +1,43 @@
+name: Docker test
+
+on:
+  push:
+    branches:
+      - 'main'
+    tags:
+      - '*'
+  pull_request:
+
+jobs:
+  docker-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2.3.4
+
+      - name: docker-compose up
+        run: docker-compose up -d
+
+      - name: Wait for some things to be inserted
+        uses: nick-invision/retry@v2
+        with:
+          timeout_minutes: 5
+          max_attempts: 50
+          retry_wait_seconds: 2
+          warning_on_retry: false
+          command: docker-compose logs wdqs-updater | grep "org.wikidata.query.rdf.tool.Updater - Polled" | wc -l | grep 10
+      - name: Make a sparql request
+        run: |
+          curl 'http://localhost:9999/bigdata/namespace/wdq/sparql' -H 'Accept: application/sparql-results+json' --data-raw 'query=SELECT+*+WHERE%7B+%3Fs+%3Fp+%3Fo+%7D'
+
+      - name: Dump logs
+        run: docker-compose logs -f  --no-color > "output.log" &
+
+      - name: Archive test output
+        uses: actions/upload-artifact@v2
+        if: always()
+        with:
+          name: DockerTestLog
+          if-no-files-found: error
+          path: output.log
+

@@ -1,3 +1,5 @@
 *.md
 *.iml
 target
+.idea
+seeder
