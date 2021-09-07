@@ -1,4 +1,4 @@
-package com.wbstack.queryservice;
+package org.wikidata.query.rdf.toolx;
 
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.jmx.JmxReporter;
@@ -7,13 +7,13 @@ import com.google.common.io.Closer;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.gson.*;
 import com.google.gson.stream.JsonReader;
+import org.apache.http.impl.client.IdleConnectionEvictor;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.api.ContentResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.wikidata.query.rdf.common.uri.UrisScheme;
 import org.wikidata.query.rdf.tool.HttpClientUtils;
-import org.wikidata.query.rdf.tool.TestUpdater;
 import org.wikidata.query.rdf.tool.Updater;
 import org.wikidata.query.rdf.tool.change.Change;
 import org.wikidata.query.rdf.tool.change.ChangeSourceContext;
@@ -37,6 +37,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -89,6 +90,17 @@ class Update {
     private static Gson gson;
 
     private static long wbStackSleepBetweenApiCalls;
+    private static Properties buildProps;
+    private static HttpClient httpClient;
+    private static Updater<? extends Change.Batch> updater;
+    private static ExecutorService updaterExecutorService;
+    private static Closer closer;
+
+    private static Retryer<ContentResponse> retryer;
+    private static Duration rdfClientTimeout;
+    private static RdfClient rdfClient;
+    private static WikibaseRepository wikibaseRepository;
+    private static MetricRegistry metricRegistry;
 
     private static void setValuesFromEnvOrDie() {
         if( System.getenv("WBSTACK_API_ENDPOINT") == null || System.getenv("WBSTACK_BATCH_SLEEP") == null ) {
@@ -100,13 +112,24 @@ class Update {
         wbStackSleepBetweenApiCalls = Integer.parseInt(System.getenv("WBSTACK_BATCH_SLEEP"));
     }
 
-    public static void main(String[] args) throws InterruptedException {
+    public static void main(String[] args) throws InterruptedException, URISyntaxException {
         setValuesFromEnvOrDie();
         int count = 0;
         int countLimit = Integer.parseInt( System.getenv("WBSTACK_LOOP_LIMIT") );
         long loopLastStarted;
         Runtime runtime = Runtime.getRuntime();
         gson = new GsonBuilder().setPrettyPrinting().create();
+        buildProps = loadBuildProperties();
+        httpClient = HttpClientUtils.buildHttpClient(HttpClientUtils.getHttpProxyHost(), HttpClientUtils.getHttpProxyPort());
+        updaterExecutorService = createUpdaterExecutorService(10);
+        closer = Closer.create();
+
+        metricRegistry = createMetricRegistry(closer, "wdqs-updater");
+        wikibaseRepository = new WikibaseRepository(new URI("http://default.web.mw.localhost:8080/") , metricRegistry);
+
+        Retryer<ContentResponse> retryer = HttpClientUtils.buildHttpClientRetryer();
+        Duration rdfClientTimeout = getRdfClientTimeout();
+        rdfClient = new RdfClient(httpClient, new URI("http://localhost:9999/bigdata/namespace/wdq/sparql"), retryer, rdfClientTimeout);
 
         // TODO actually set to run for 1 hour or something?
         while (count < countLimit) {
@@ -200,12 +223,10 @@ class Update {
             System.out.print(s + " ");
         }
         System.out.println("");
-        Closer closer = Closer.create();
 
         try {
-            //org.wikidata.query.rdf.tool.Update.main( args );
+            org.wikidata.query.rdf.tool.Update.main( args );
             try {
-                Properties buildProps = loadBuildProperties();
                 log.info("Starting Updater {} ({})", buildProps.getProperty("git.build.version", "UNKNOWN"), buildProps.getProperty("git.commit.id", "UNKNOWN"));
                 Updater<? extends Change.Batch> updater = initialize(args, closer);
                 run(updater);
@@ -258,28 +279,43 @@ class Update {
         return prop;
     }
 
-    private static Updater<? extends Change.Batch> initialize(String[] args, Closer closer) throws URISyntaxException {
+    private static Updater<? extends Change.Batch> initialize(String[] args, Closer closer) throws Exception {
         try {
             UpdateOptions options = (UpdateOptions) OptionsUtils.handleOptions(UpdateOptions.class, args);
-            MetricRegistry metricRegistry = createMetricRegistry(closer, options.metricDomain());
+
             StreamDumper wikibaseStreamDumper = createStreamDumper(UpdateOptions.dumpDirPath(options));
-            WikibaseRepository wikibaseRepository = new WikibaseRepository(UpdateOptions.uris(options), options.constraints(), metricRegistry, wikibaseStreamDumper, UpdateOptions.revisionDuration(options));
-            closer.register(wikibaseRepository);
+
+            //Set<Long> namespaces = UpdateOptions.longEntityNamespaces(options);
+
+            //wikibaseRepository.getUris().setEntityNamespaces(namespaces);
+
+
+            wikibaseRepository = new WikibaseRepository(
+                    UpdateOptions.uris(options),
+                    options.constraints(),
+                    metricRegistry,
+                    wikibaseStreamDumper,
+                    UpdateOptions.revisionDuration(options)
+            );
+
+            //wikibaseRepository.setCollectConstraints(options.constraints());
+            //wikibaseRepository.setRevisionCutoff(UpdateOptions.revisionDuration(options));
+
+            //closer.register(wikibaseRepository);
             UrisScheme wikibaseUris = OptionsUtils.WikibaseOptions.wikibaseUris(options);
             URI root = wikibaseRepository.getUris().builder().build();
             URI sparqlUri = UpdateOptions.sparqlUri(options);
-            HttpClient httpClient = HttpClientUtils.buildHttpClient(HttpClientUtils.getHttpProxyHost(), HttpClientUtils.getHttpProxyPort());
-            closer.register(wrapHttpClient(httpClient));
-            Retryer<ContentResponse> retryer = HttpClientUtils.buildHttpClientRetryer();
-            Duration rdfClientTimeout = getRdfClientTimeout();
-            RdfClient rdfClient = new RdfClient(httpClient, sparqlUri, retryer, rdfClientTimeout);
+            httpClient.start();
+            //IdleConnectionEvictor connEvictor = new IdleConnectionEvictor();
+            //closer.register(wrapHttpClient(httpClient));
+
             RdfRepository rdfRepository = new RdfRepository(wikibaseUris, rdfClient, MAX_FORM_CONTENT_SIZE);
             Instant startTime = ChangeSourceContext.getStartTime(UpdateOptions.startInstant(options), rdfRepository, options.init());
             Change.Source<? extends Change.Batch> changeSource = ChangeSourceContext.buildChangeSource(options, startTime, wikibaseRepository, rdfClient, root, metricRegistry);
             Munger munger = OptionsUtils.mungerFromOptions(options);
-            ExecutorService updaterExecutorService = createUpdaterExecutorService(options.threadCount());
-            Updater<? extends Change.Batch> updater = createUpdater(wikibaseRepository, wikibaseUris, rdfRepository, changeSource, munger, updaterExecutorService, options.pollDelay(), options.verify(), options.testMode(), metricRegistry);
-            closer.register(updater);
+
+            updater = createUpdater(wikibaseRepository, wikibaseUris, rdfRepository, changeSource, munger, updaterExecutorService, options.pollDelay(), options.verify(), options.testMode(), metricRegistry);
+            //closer.register(updater);
             return updater;
         } catch (Exception var19) {
             log.error("Error during initialization.", var19);
@@ -291,26 +327,34 @@ class Update {
         return (StreamDumper)(dumpDir == null ? new NullStreamDumper() : new FileStreamDumper(dumpDir));
     }
 
-    private static void run(Updater<? extends Change.Batch> updater) {
+    private static void run(Updater<? extends Change.Batch> updater) throws Exception {
+
         try {
             updater.run();
         } catch (Exception var2) {
             log.error("Error during updater run.", var2);
             throw var2;
         }
+        finally {
+            //updater.close();
+            //updaterExecutorService = createUpdaterExecutorService(10);
+            httpClient.stop();
+            wikibaseRepository.close();
+            wikibaseRepository.close();
+        }
     }
 
     private static Updater<? extends Change.Batch> createUpdater(WikibaseRepository wikibaseRepository, UrisScheme uris, RdfRepository rdfRepository, Change.Source<? extends Change.Batch> changeSource, Munger munger, ExecutorService executor, int pollDelay, boolean verify, boolean testMode, MetricRegistry metricRegistry) {
-        return new Updater(changeSource, wikibaseRepository, rdfRepository, munger, executor, pollDelay, uris, verify, metricRegistry);
+        return new Updater(changeSource, wikibaseRepository, rdfRepository, munger, executor, pollDelay, uris, false, metricRegistry);
     }
 
     private static ExecutorService createUpdaterExecutorService(int threadCount) {
         ThreadFactoryBuilder threadFactory = (new ThreadFactoryBuilder()).setDaemon(true).setNameFormat("update %s");
-        return new ThreadPoolExecutor(threadCount, threadCount, 0L, TimeUnit.SECONDS, new LinkedBlockingQueue(), threadFactory.build());
+        return new ThreadPoolExecutor(threadCount, threadCount, 60, TimeUnit.SECONDS, new LinkedBlockingQueue(), threadFactory.build());
     }
 
     public static Duration getRdfClientTimeout() {
-        int timeout = Integer.parseInt(System.getProperty(TIMEOUT_PROPERTY, "-1"));
+        int timeout = Integer.parseInt(System.getProperty(TIMEOUT_PROPERTY, "0"));
         return Duration.of((long)timeout, ChronoUnit.SECONDS);
     }
 
