@@ -27,6 +27,19 @@
                 <checksumPolicy>fail</checksumPolicy>
             </snapshots>
         </repository>
+
+        <repository>
+            <id>wikimedia.releases</id>
+            <name>Wikimedia Release Repository</name>
+            <url>https://archiva.wikimedia.org/repository/releases</url>
+            <releases>
+                <enabled>true</enabled>
+                <checksumPolicy>fail</checksumPolicy>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
     </repositories>
     <dependencies>
         <dependency>
@@ -37,7 +50,7 @@
         <dependency>
             <groupId>org.wikidata.query.rdf</groupId>
             <artifactId>tools</artifactId>
-            <version>0.3.6-SNAPSHOT</version>
+            <version>0.3.84</version>
             <type>jar</type>
         </dependency>
     </dependencies>
