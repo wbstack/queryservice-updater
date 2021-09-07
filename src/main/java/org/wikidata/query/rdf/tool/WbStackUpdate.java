@@ -54,6 +54,8 @@ class WbStackUpdate {
     private static final String USER_AGENT = "WBStack - Query Service - Updater";
     private static String wbStackApiEndpoint;
     private static long wbStackSleepBetweenApiCalls;
+    private static String wbStackWikibaseScheme;
+    private static Integer wbStackUpdaterThreadCount;
 
     private static Gson gson;
     private static MetricRegistry metricRegistry;
@@ -74,12 +76,15 @@ class WbStackUpdate {
 
         wbStackApiEndpoint = System.getenv("WBSTACK_API_ENDPOINT");
         wbStackSleepBetweenApiCalls = Integer.parseInt(System.getenv("WBSTACK_BATCH_SLEEP"));
+        wbStackUpdaterThreadCount = Integer.parseInt(System.getenv().getOrDefault("WBSTACK_THREAD_COUNT", "10" ));
+        wbStackWikibaseScheme = System.getenv().getOrDefault("WBSTACK_WIKIBASE_SCHEME", "https" );
     }
 
-    public static void main(String[] args) throws InterruptedException, URISyntaxException {
+    public static void main(String[] args) throws InterruptedException {
         setValuesFromEnvOrDie();
         int count = 0;
         int countLimit = Integer.parseInt( System.getenv("WBSTACK_LOOP_LIMIT") );
+
         long loopLastStarted;
         Runtime runtime = Runtime.getRuntime();
         gson = new GsonBuilder().setPrettyPrinting().create();
@@ -165,7 +170,7 @@ class WbStackUpdate {
         runUpdaterWithArgs(new String[] {
                 "--sparqlUrl", "http://" + qsBackend + "/bigdata/namespace/" + qsNamespace + "/sparql",
                 "--wikibaseHost", domain,
-                "--wikibaseScheme", "http",
+                "--wikibaseScheme", wbStackWikibaseScheme,
                 "--conceptUri", "http://" + domain,
                 "--entityNamespaces", "120,122,146",
                 "--ids", entityIDs
@@ -247,7 +252,7 @@ class WbStackUpdate {
             Instant startTime = ChangeSourceContext.getStartTime(UpdateOptions.startInstant(options), rdfRepository, options.init());
             Source<? extends Batch> changeSource = ChangeSourceContext.buildChangeSource(options, startTime, wikibaseRepository, rdfClient, root, metricRegistry);
             Munger munger = OptionsUtils.mungerFromOptions(options);
-            ExecutorService updaterExecutorService = createUpdaterExecutorService(10);
+            ExecutorService updaterExecutorService = createUpdaterExecutorService(wbStackUpdaterThreadCount);
             Updater<? extends Batch> updater = createUpdater(wikibaseRepository, wikibaseUris, rdfRepository, changeSource, munger, updaterExecutorService, options.importAsync(), options.pollDelay(), options.verify(), metricRegistry);
             closer.register(updater);
             return updater;
