@@ -1,2 +1,4 @@
 *.iml
+.idea
 target
+seeder/node_modules
