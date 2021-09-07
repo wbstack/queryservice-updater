@@ -4,7 +4,7 @@ const wbEdit = require( 'wikibase-edit' )( require( '../wikibase-edit.config' ) 
 
 describe( 'Fillerup', () => {
 
-	it( 'Should validate request body', async () => {
+	it( 'Should fill the wikibase', async () => {
 
 		while( true ) {
 			const { entity } = await wbEdit.entity.create({
