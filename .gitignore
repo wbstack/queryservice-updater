@@ -2,3 +2,6 @@
 .idea
 target
 seeder/node_modules
+.classpath
+.project
+.settings
