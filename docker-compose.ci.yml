@@ -1,0 +1,25 @@
+version: '2'
+services:
+  api:
+    environment:
+      - API_WIKIBASE_DOMAIN=wikibase.svc
+      - API_WDQS_BACKEND=wdqs.svc:9999
+
+  wdqs-updater:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - wdqs
+    networks:
+      default:
+        aliases:
+          - wdqs-updater.svc
+    environment:
+      - WBSTACK_WIKIBASE_SCHEME=http
+      - WBSTACK_LOOP_LIMIT=100
+      - WBSTACK_API_ENDPOINT=http://api.svc:3030
+      - WBSTACK_BATCH_SLEEP=1
+      - WIKIBASE_HOST=wikibase.svc
+      - HEAP_SIZE=32m
