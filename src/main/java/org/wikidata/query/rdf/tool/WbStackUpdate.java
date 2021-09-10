@@ -55,12 +55,14 @@ import org.wikidata.query.rdf.tool.rdf.RdfRepository;
 class WbStackUpdate {
 
     private static final String USER_AGENT = "WBStack - Query Service - Updater";
+    private static final Integer defaultTimeout = 10 * 1000;
+
     private static String wbStackApiEndpoint;
     private static long wbStackSleepBetweenApiCalls;
-    private static String wbStackWikibaseScheme;
     private static Integer wbStackUpdaterThreadCount;
-
-    private static final Integer defaultTimeout = 10 * 1000;
+    private static String wbStackUpdaterNamespaces;
+    private static String wbStackWikibaseScheme;
+    private static Integer wbStackLoopLimit;
 
     private static Gson gson;
     private static MetricRegistry metricRegistry;
@@ -76,21 +78,22 @@ class WbStackUpdate {
 
     private static void setValuesFromEnvOrDie() {
         if( System.getenv("WBSTACK_API_ENDPOINT") == null || System.getenv("WBSTACK_BATCH_SLEEP") == null || System.getenv("WBSTACK_LOOP_LIMIT") == null ) {
-            System.err.println("WBSTACK_API_ENDPOINT and WBSTACK_BATCH_SLEEP environment variables must be set.");
+            System.err.println("WBSTACK_API_ENDPOINT, WBSTACK_BATCH_SLEEP and WBSTACK_LOOP_LIMIT environment variables must be set.");
             System.exit(1);
         }
 
         wbStackApiEndpoint = System.getenv("WBSTACK_API_ENDPOINT");
         wbStackSleepBetweenApiCalls = Integer.parseInt(System.getenv("WBSTACK_BATCH_SLEEP"));
         wbStackUpdaterThreadCount = Integer.parseInt(System.getenv().getOrDefault("WBSTACK_THREAD_COUNT", "10" ));
+        wbStackUpdaterNamespaces = System.getenv().getOrDefault("WBSTACK_UPDATER_NAMESPACES", "120,122,146" );
         wbStackWikibaseScheme = System.getenv().getOrDefault("WBSTACK_WIKIBASE_SCHEME", "https" );
+        wbStackLoopLimit = Integer.parseInt( System.getenv("WBSTACK_LOOP_LIMIT") );
     }
 
     public static void main(String[] args) throws InterruptedException {
         setValuesFromEnvOrDie();
-        int count = 0;
-        int countLimit = Integer.parseInt( System.getenv("WBSTACK_LOOP_LIMIT") );
 
+        int loopCount = 0;
         long loopLastStarted;
         gson = new GsonBuilder().setPrettyPrinting().create();
         buildProps = loadBuildProperties();
@@ -98,14 +101,14 @@ class WbStackUpdate {
         metricRegistry = createMetricRegistry(metricsCloser, "wdqs-updater");
 
         Runtime runtime = Runtime.getRuntime();
-        while (count < countLimit) {
-            count++;
+        while (loopCount < wbStackLoopLimit) {
+            loopCount++;
             loopLastStarted = System.currentTimeMillis();
             mainLoop();
             long memory = runtime.totalMemory() - runtime.freeMemory();
             int activeThreads = ManagementFactory.getThreadMXBean().getThreadCount();
             System.out.println(
-                            "Loop " + count + "/" + countLimit + ". " +
+                            "Loop " + loopCount + "/" + wbStackLoopLimit + ". " +
                             "TotalM: " + (runtime.totalMemory() / (1024L * 1024L)) + ". " +
                             "FreeM: " + (runtime.freeMemory() / (1024L * 1024L)) + ". " +
                             "UsedM: " + (memory / (1024L * 1024L)) + ". " +
@@ -115,7 +118,7 @@ class WbStackUpdate {
             sleepForRemainingTimeBetweenLoops( loopLastStarted );
         }
 
-        System.out.println("Finished " + count + " runs. Exiting...");
+        System.out.println("Finished " + loopCount + " loops. Exiting...");
 
         try {
             metricsCloser.close();
@@ -123,6 +126,13 @@ class WbStackUpdate {
             e.printStackTrace();
         }
 
+    }
+
+    private static void sleepForRemainingTimeBetweenLoops(long timeApiRequestDone ) throws InterruptedException {
+        long secondsRunning = (System.currentTimeMillis() - timeApiRequestDone)/1000;
+        if(secondsRunning < wbStackSleepBetweenApiCalls ) {
+            TimeUnit.SECONDS.sleep(wbStackSleepBetweenApiCalls-secondsRunning);
+        }
     }
 
     private static void mainLoop() {
@@ -178,19 +188,12 @@ class WbStackUpdate {
         runUpdaterWithArgs(new String[] {
                 "--wikibaseHost", domain,
                 "--ids", entityIDs,
-                "--entityNamespaces", "120,122,146",
+                "--entityNamespaces", wbStackUpdaterNamespaces,
                 "--sparqlUrl", "http://" + qsBackend + "/bigdata/namespace/" + qsNamespace + "/sparql",
                 "--wikibaseScheme", wbStackWikibaseScheme,
                 "--conceptUri", "http://" + domain
         });
         // TODO on success maybe report back?
-    }
-
-    private static void sleepForRemainingTimeBetweenLoops(long timeApiRequestDone ) throws InterruptedException {
-        long secondsRunning = (System.currentTimeMillis() - timeApiRequestDone)/1000;
-        if(secondsRunning < wbStackSleepBetweenApiCalls ) {
-            TimeUnit.SECONDS.sleep(wbStackSleepBetweenApiCalls-secondsRunning);
-        }
     }
 
     private static void runUpdaterWithArgs(String[] args) {
