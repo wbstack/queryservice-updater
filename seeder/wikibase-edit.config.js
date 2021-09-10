@@ -1,7 +1,7 @@
 'use strict';
 
 // eslint-disable-next-line node/no-missing-require
-const testConfig = require( './.api-testing.config.ci.json' );
+const testConfig = require( './.api-testing.config.json' );
 
 const baseUrl = new URL( testConfig.base_uri );
 

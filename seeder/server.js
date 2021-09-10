@@ -29,9 +29,9 @@ http.createServer(async function (req, res) {
     responseObject = {
         'entityIds': entities.join(','),
         'wiki': {
-            'domain': 'wikibase.svc',
+            'domain': process.env.API_WIKIBASE_DOMAIN,
             'wiki_queryservice_namespace': {
-                'backend': 'wdqs.svc:9999',
+                'backend': process.env.API_WDQS_BACKEND,
                 'namespace': 'wdq'
             }
         },

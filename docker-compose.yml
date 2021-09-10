@@ -32,25 +32,9 @@ services:
       default:
         aliases:
           - api.svc
-
-  wdqs-updater:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    depends_on:
-      - wdqs
-    networks:
-      default:
-        aliases:
-          - wdqs-updater.svc
     environment:
-      - WBSTACK_WIKIBASE_SCHEME=http
-      - WBSTACK_LOOP_LIMIT=100
-      - WBSTACK_API_ENDPOINT=http://api.svc:3030
-      - WBSTACK_BATCH_SLEEP=1
-      - WIKIBASE_HOST=wikibase.svc
-      - HEAP_SIZE=32m
+      - API_WIKIBASE_DOMAIN=localhost
+      - API_WDQS_BACKEND=localhost:9999
 
   wikibase:
     image: "${WIKIBASE_IMAGE_NAME}"
@@ -64,7 +48,7 @@ services:
     networks:
       default:
         aliases:
-          - wikibase.svc # CONFIG - Add your real wikibase hostname here, only for internal names and when NOT terminating SSL outside the container.
+          - wikibase.svc
     environment:
       DB_SERVER: mysql.svc:3306
       MW_ADMIN_NAME:
@@ -75,7 +59,6 @@ services:
       DB_PASS: ${DB_PASS}
       DB_NAME: ${DB_NAME}
       WIKIBASEHOST:
-      MAX_JOBS: ${MAX_JOBS}
 
   mysql:
     image: "${MYSQL_IMAGE_NAME}"
