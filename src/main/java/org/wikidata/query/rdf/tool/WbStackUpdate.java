@@ -32,9 +32,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.stream.JsonReader;
 
-import org.apache.http.config.SocketConfig;
 import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.IdleConnectionEvictor;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.api.ContentResponse;
@@ -74,10 +72,7 @@ class WbStackUpdate {
     private static Properties buildProps;
     private static Closer metricsCloser;
     private static MetricRegistry metricRegistry;
-
-    private static CloseableHttpClient client;
-    private static PoolingHttpClientConnectionManager manager;
-    private static IdleConnectionEvictor connectionEvictor;
+    private static PoolingHttpClientConnectionManager poolingConnectionManager;
 
     private static final Logger log = LoggerFactory.getLogger(org.wikidata.query.rdf.tool.WbStackUpdate.class);
     private static final long MAX_FORM_CONTENT_SIZE = Long.getLong("RDFRepositoryMaxPostSize", 200000000L);
@@ -102,6 +97,16 @@ class WbStackUpdate {
         buildProps = loadBuildProperties();
         metricsCloser = Closer.create();
         metricRegistry = createMetricRegistry(metricsCloser, "wdqs-updater");
+        poolingConnectionManager = (PoolingHttpClientConnectionManager) HttpClientUtils.createConnectionManager(metricRegistry, defaultTimeout);
+    }
+
+    private static void closeSingleUseServicesAndObjects() {
+        try {
+            metricsCloser.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        poolingConnectionManager.shutdown();
     }
 
     public static void main(String[] args) throws InterruptedException {
@@ -131,11 +136,7 @@ class WbStackUpdate {
 
         System.out.println("Finished " + loopCount + " loops. Exiting...");
 
-        try {
-            metricsCloser.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        closeSingleUseServicesAndObjects();
     }
 
     private static void sleepForRemainingTimeBetweenApiCalls( long loopLastStarted ) throws InterruptedException {
@@ -222,9 +223,6 @@ class WbStackUpdate {
                 throw closer.rethrow(var7);
             } finally {
                 closer.close();
-                client.close();
-                manager.shutdown();
-                connectionEvictor.shutdown();
             }
 
         } catch (Exception e) {
@@ -236,48 +234,39 @@ class WbStackUpdate {
     private static Updater<? extends Batch> initialize(String[] args, Closer closer) throws URISyntaxException {
         try {
             UpdateOptions options = (UpdateOptions)OptionsUtils.handleOptions(UpdateOptions.class, args);
-            StreamDumper wikibaseStreamDumper = createStreamDumper(UpdateOptions.dumpDirPath(options));
 
-            // Don't use the ConnectionManager from HttpClientUtils as it constantly spawns Eviction threads that won't stop
-            manager  = new PoolingHttpClientConnectionManager(-1, TimeUnit.SECONDS);
-            manager.setDefaultMaxPerRoute(100);
-            manager.setMaxTotal(100);
-            connectionEvictor = new IdleConnectionEvictor(manager, 1L, TimeUnit.SECONDS);
-            connectionEvictor.start();
-            manager.setDefaultSocketConfig(SocketConfig.copy(SocketConfig.DEFAULT)
-                    .setSoTimeout(defaultTimeout)
-                    .build());
-
-            client = HttpClientUtils.createHttpClient( manager, null, null, defaultTimeout);
+            // CloseableHttpClient that is closed by WikibaseRepository.close, which is registered to the closer
+            CloseableHttpClient httpClientApache = HttpClientUtils.createHttpClient( poolingConnectionManager, null, null, defaultTimeout);
             WikibaseRepository wikibaseRepository = new WikibaseRepository(
                     UpdateOptions.uris(options),
                     options.constraints(),
                     metricRegistry,
-                    wikibaseStreamDumper,
+                    createStreamDumper(UpdateOptions.dumpDirPath(options)),
                     UpdateOptions.revisionDuration(options),
                     RDFParserSuppliers.defaultRdfParser(),
-                    client
+                    httpClientApache
             );
-
             closer.register(wikibaseRepository);
 
             UrisScheme wikibaseUris = WikibaseOptions.wikibaseUris(options);
             URI root = wikibaseRepository.getUris().builder().build();
             URI sparqlUri = UpdateOptions.sparqlUri(options);
-            HttpClient httpClient = HttpClientUtils.buildHttpClient(HttpClientUtils.getHttpProxyHost(), HttpClientUtils.getHttpProxyPort());
-            closer.register(wrapHttpClient(httpClient));
+
+            HttpClient httpClientJetty = HttpClientUtils.buildHttpClient(HttpClientUtils.getHttpProxyHost(), HttpClientUtils.getHttpProxyPort());
+            closer.register(wrapHttpClient(httpClientJetty));
             Retryer<ContentResponse> retryer = HttpClientUtils.buildHttpClientRetryer();
 
             Duration rdfClientTimeout = org.wikidata.query.rdf.tool.Update.getRdfClientTimeout();
-
-            RdfClient rdfClient = new RdfClient(httpClient, sparqlUri, retryer, rdfClientTimeout);
+            RdfClient rdfClient = new RdfClient(httpClientJetty, sparqlUri, retryer, rdfClientTimeout);
             RdfRepository rdfRepository = new RdfRepository(wikibaseUris, rdfClient, MAX_FORM_CONTENT_SIZE);
+
             Instant startTime = ChangeSourceContext.getStartTime(UpdateOptions.startInstant(options), rdfRepository, options.init());
             Source<? extends Batch> changeSource = ChangeSourceContext.buildChangeSource(options, startTime, wikibaseRepository, rdfClient, root, metricRegistry);
             Munger munger = OptionsUtils.mungerFromOptions(options);
             ExecutorService updaterExecutorService = createUpdaterExecutorService(wbStackUpdaterThreadCount);
             Updater<? extends Batch> updater = createUpdater(wikibaseRepository, wikibaseUris, rdfRepository, changeSource, munger, updaterExecutorService, options.importAsync(), options.pollDelay(), options.verify(), metricRegistry);
             closer.register(updater);
+
             return updater;
         } catch (Exception var19) {
             log.error("Error during initialization.", var19);
