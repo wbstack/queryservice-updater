@@ -25,6 +25,7 @@ import org.wikidata.query.rdf.tool.utils.NullStreamDumper;
 import org.wikidata.query.rdf.tool.utils.StreamDumper;
 import org.wikidata.query.rdf.tool.wikibase.WikibaseRepository;
 import java.io.*;
+import java.lang.management.ManagementFactory;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -98,12 +99,14 @@ class WbStackUpdate {
             loopLastStarted = System.currentTimeMillis();
             mainLoop();
             long memory = runtime.totalMemory() - runtime.freeMemory();
+            int activeThreads = ManagementFactory.getThreadMXBean().getThreadCount();
             System.out.println(
                             "Loop " + count + "/" + countLimit + ". " +
                             "Total mem:" + (runtime.totalMemory() / (1024L * 1024L)) + ". " +
                             "Free mem:" + (runtime.freeMemory() / (1024L * 1024L)) + ". " +
                             "Used mem:" + (memory / (1024L * 1024L)) + ". " +
-                            "Max mem:" + (runtime.maxMemory() / (1024L * 1024L)) + ". "
+                            "Max mem:" + (runtime.maxMemory() / (1024L * 1024L)) + ". " +
+                            "Threads: " + activeThreads
             );
             sleepForRemainingTimeBetweenLoops( loopLastStarted );
         }
@@ -141,7 +144,6 @@ class WbStackUpdate {
             throw new IOException("Got non 200 response code: " + responseCode);
         }
         JsonElement batches = null;
-
         try (JsonReader reader = new JsonReader(new InputStreamReader(con.getInputStream()))) {
             batches = gson.fromJson(reader, JsonElement.class);
             if (batches == null) {
@@ -152,6 +154,8 @@ class WbStackUpdate {
         } catch (JsonSyntaxException e) {
             System.err.println("Failed to get JSON from str");
             return new JsonArray();
+        } finally {
+            con.disconnect();
         }
     }
 
