@@ -20,10 +20,6 @@ jobs:
       - name: docker-compose up
         run: docker-compose ${{ env.COMPOSE_ARGS }} up -d
 
-      - name: Output logs
-        if: always()
-        run: docker-compose ${{ env.COMPOSE_ARGS }} logs -f --no-color > "output.log" &
-
       - name: Wait for some things to be inserted
         uses: nick-invision/retry@v2
         with:
@@ -37,7 +33,11 @@ jobs:
         run: |
           curl 'http://localhost:9999/bigdata/namespace/wdq/sparql' -H 'Accept: application/sparql-results+json' --data-raw 'query=SELECT+*+WHERE%7B+%3Fs+%3Fp+%3Fo+%7D'
 
-      - name: Archive test output
+      - name: docker-compose logs > output.log
+        if: always()
+        run: docker-compose ${{ env.COMPOSE_ARGS }} logs --no-color > "output.log"
+
+      - name: Archive output.log
         uses: actions/upload-artifact@v2
         if: always()
         with:
