@@ -1,6 +1,10 @@
 # queryservice-updater
 
-## 0.3.84_3.3 - 10th September 2021
+## 0.3.84_3.4 - 10th September 2021
+
+- Bump default http timeout to 10s
+
+**0.3.84_3.3 - 10th September 2021**
 
 - Remove heapsize + memory from runupdate
 - Increase socket timeout to 5s
