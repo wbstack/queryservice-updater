@@ -7,8 +7,10 @@ import com.google.common.io.Closer;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.gson.*;
 import com.google.gson.stream.JsonReader;
+import org.apache.http.config.SocketConfig;
 import org.apache.http.conn.HttpClientConnectionManager;
 import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.IdleConnectionEvictor;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.api.ContentResponse;
@@ -61,8 +63,9 @@ class WbStackUpdate {
     private static Gson gson;
     private static MetricRegistry metricRegistry;
     private static CloseableHttpClient client;
-    private static HttpClientConnectionManager manager;
+    private static PoolingHttpClientConnectionManager manager;
     private static Properties buildProps;
+    private static IdleConnectionEvictor connectionEvictor;
 
     private static final Logger log = LoggerFactory.getLogger(org.wikidata.query.rdf.tool.WbStackUpdate.class);
     private static final long MAX_FORM_CONTENT_SIZE = Long.getLong("RDFRepositoryMaxPostSize", 200000000L);
@@ -214,6 +217,7 @@ class WbStackUpdate {
                 closer.close();
                 client.close();
                 manager.shutdown();
+                connectionEvictor.shutdown();
             }
 
         } catch (Exception e) {
@@ -229,6 +233,12 @@ class WbStackUpdate {
 
             // Don't use the ConnectionManager from HttpClientUtils as it constantly spawns Eviction threads that won't stop
             manager  = new PoolingHttpClientConnectionManager(-1, TimeUnit.SECONDS);
+            manager.setDefaultMaxPerRoute(100);
+            manager.setMaxTotal(100);
+            connectionEvictor = new IdleConnectionEvictor(manager, 1L, TimeUnit.SECONDS);
+            connectionEvictor.start();
+            manager.setDefaultSocketConfig(SocketConfig.copy(SocketConfig.DEFAULT).setSoTimeout(2000).build());
+
             client = HttpClientUtils.createHttpClient( manager, null, null, 1000);
             WikibaseRepository wikibaseRepository = new WikibaseRepository(
                     UpdateOptions.uris(options),
