@@ -1,6 +1,12 @@
 # queryservice-updater
 
-## 0.3.84_3.0 - 7th September 2021
+## 0.3.84_3.1- 10th September 2021
+
+- Introduce `WBSTACK_THREAD_COUNT` env var (default 10, same as before)
+- Introduce `WBSTACK_WIKIBASE_SCHEME` env var (default https, same as before 3.0)
+- Thus, switch from incorrect http scheme to https by default (http used locally)
+
+**0.3.84_3.0 - 7th September 2021**
 
 - Rewrite the Java wrapper around origional updater (extracting some things)
 - Attempt to eliminate memory and thread leaks
