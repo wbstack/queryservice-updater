@@ -237,7 +237,9 @@ class WbStackUpdate {
             manager.setMaxTotal(100);
             connectionEvictor = new IdleConnectionEvictor(manager, 1L, TimeUnit.SECONDS);
             connectionEvictor.start();
-            manager.setDefaultSocketConfig(SocketConfig.copy(SocketConfig.DEFAULT).setSoTimeout(2000).build());
+            manager.setDefaultSocketConfig(SocketConfig.copy(SocketConfig.DEFAULT)
+                    .setSoTimeout(Math.toIntExact(HttpClientUtils.TIMEOUT.toMillis()))
+                    .build());
 
             client = HttpClientUtils.createHttpClient( manager, null, null, 1000);
             WikibaseRepository wikibaseRepository = new WikibaseRepository(
