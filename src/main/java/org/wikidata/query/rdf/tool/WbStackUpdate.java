@@ -60,6 +60,8 @@ class WbStackUpdate {
     private static String wbStackWikibaseScheme;
     private static Integer wbStackUpdaterThreadCount;
 
+    private static final Integer defaultTimeout = 10 * 1000;
+
     private static Gson gson;
     private static MetricRegistry metricRegistry;
     private static CloseableHttpClient client;
@@ -238,10 +240,10 @@ class WbStackUpdate {
             connectionEvictor = new IdleConnectionEvictor(manager, 1L, TimeUnit.SECONDS);
             connectionEvictor.start();
             manager.setDefaultSocketConfig(SocketConfig.copy(SocketConfig.DEFAULT)
-                    .setSoTimeout(Math.toIntExact(HttpClientUtils.TIMEOUT.toMillis()))
+                    .setSoTimeout(defaultTimeout)
                     .build());
 
-            client = HttpClientUtils.createHttpClient( manager, null, null, 1000);
+            client = HttpClientUtils.createHttpClient( manager, null, null, defaultTimeout);
             WikibaseRepository wikibaseRepository = new WikibaseRepository(
                     UpdateOptions.uris(options),
                     options.constraints(),
