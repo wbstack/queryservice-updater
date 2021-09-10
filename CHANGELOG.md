@@ -1,6 +1,10 @@
 # queryservice-updater
 
-## 0.3.84_3.4 - 10th September 2021
+## 0.3.84_3.5 - 10th September 2021
+
+- Reduce log output on successfull runs (combining 2 lines)
+
+**0.3.84_3.4 - 10th September 2021**
 
 - Bump default http timeout to 10s
 

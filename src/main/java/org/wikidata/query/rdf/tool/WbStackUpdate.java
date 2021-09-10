@@ -92,13 +92,12 @@ class WbStackUpdate {
         int countLimit = Integer.parseInt( System.getenv("WBSTACK_LOOP_LIMIT") );
 
         long loopLastStarted;
-        Runtime runtime = Runtime.getRuntime();
         gson = new GsonBuilder().setPrettyPrinting().create();
         buildProps = loadBuildProperties();
         metricsCloser = Closer.create();
         metricRegistry = createMetricRegistry(metricsCloser, "wdqs-updater");
 
-        // TODO actually set to run for 1 hour or something?
+        Runtime runtime = Runtime.getRuntime();
         while (count < countLimit) {
             count++;
             loopLastStarted = System.currentTimeMillis();
@@ -107,10 +106,10 @@ class WbStackUpdate {
             int activeThreads = ManagementFactory.getThreadMXBean().getThreadCount();
             System.out.println(
                             "Loop " + count + "/" + countLimit + ". " +
-                            "Total mem:" + (runtime.totalMemory() / (1024L * 1024L)) + ". " +
-                            "Free mem:" + (runtime.freeMemory() / (1024L * 1024L)) + ". " +
-                            "Used mem:" + (memory / (1024L * 1024L)) + ". " +
-                            "Max mem:" + (runtime.maxMemory() / (1024L * 1024L)) + ". " +
+                            "TotalM: " + (runtime.totalMemory() / (1024L * 1024L)) + ". " +
+                            "FreeM: " + (runtime.freeMemory() / (1024L * 1024L)) + ". " +
+                            "UsedM: " + (memory / (1024L * 1024L)) + ". " +
+                            "MaxM: " + (runtime.maxMemory() / (1024L * 1024L)) + ". " +
                             "Threads: " + activeThreads
             );
             sleepForRemainingTimeBetweenLoops( loopLastStarted );
@@ -177,12 +176,12 @@ class WbStackUpdate {
 
         // Run the main Update class with our altered args
         runUpdaterWithArgs(new String[] {
-                "--sparqlUrl", "http://" + qsBackend + "/bigdata/namespace/" + qsNamespace + "/sparql",
                 "--wikibaseHost", domain,
-                "--wikibaseScheme", wbStackWikibaseScheme,
-                "--conceptUri", "http://" + domain,
+                "--ids", entityIDs,
                 "--entityNamespaces", "120,122,146",
-                "--ids", entityIDs
+                "--sparqlUrl", "http://" + qsBackend + "/bigdata/namespace/" + qsNamespace + "/sparql",
+                "--wikibaseScheme", wbStackWikibaseScheme,
+                "--conceptUri", "http://" + domain
         });
         // TODO on success maybe report back?
     }
@@ -195,17 +194,12 @@ class WbStackUpdate {
     }
 
     private static void runUpdaterWithArgs(String[] args) {
-        System.out.print("Running updater with args: ");
-        for(String s : args){
-            System.out.print(s + " ");
-        }
-        System.out.println("");
 
         try {
             Closer closer = Closer.create();
 
             try {
-                log.info("Starting Updater {} ({})", buildProps.getProperty("git.build.version", "UNKNOWN"), buildProps.getProperty("git.commit.id", "UNKNOWN"));
+                log.info("Starting Updater {} ({}) {}", buildProps.getProperty("git.build.version", "UNKNOWN"), buildProps.getProperty("git.commit.id", "UNKNOWN"), String.join(" ", args));
                 Updater<? extends Batch> updater = initialize(args, closer);
                 try {
                     updater.run();
