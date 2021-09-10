@@ -1,12 +1,17 @@
 # queryservice-updater
 
-## 0.3.84_3.2- 10th September 2021
+## 0.3.84_3.3 - 10th September 2021
+
+- Remove heapsize + memory from runupdate
+- Increase socket timeout to 5s
+
+**0.3.84_3.2 - 10th September 2021**
 
 - Debug log number of threads
 - Use IdleConnectionEvictor
 - Call con.disconnect
 
-**0.3.84_3.1- 10th September 2021**
+**0.3.84_3.1 - 10th September 2021**
 
 - Introduce `WBSTACK_THREAD_COUNT` env var (default 10, same as before)
 - Introduce `WBSTACK_WIKIBASE_SCHEME` env var (default https, same as before 3.0)
