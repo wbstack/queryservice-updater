@@ -27,8 +27,7 @@ jobs:
           max_attempts: 50
           retry_wait_seconds: 2
           warning_on_retry: false
-          command: docker-compose ${{ env.COMPOSE_ARGS }} logs wdqs-updater | grep "org.wikidata.query.rdf.tool.Updater - Polled" | wc -l | grep 10
-
+          command: if (($(docker-compose ${{ env.COMPOSE_ARGS }} logs wdqs-updater | grep "org.wikidata.query.rdf.tool.Updater - Polled" | wc -l) >= 10)); then exit 0; else exit 1; fi
       - name: Make a sparql request
         run: |
           curl 'http://localhost:9999/bigdata/namespace/wdq/sparql' -H 'Accept: application/sparql-results+json' --data-raw 'query=SELECT+*+WHERE%7B+%3Fs+%3Fp+%3Fo+%7D'
