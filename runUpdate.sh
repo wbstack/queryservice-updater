@@ -95,11 +95,9 @@ fi
 
 # TODO dont hard code CLASSPATH for wbstack.. as we let everything else be passed in..
 CLASSPATH=/wdqsup/wbstackqs.jar
-HEAP_SIZE=${HEAP_SIZE:-"3g"}
-MEMORY=${MEMORY:-"-Xmx${HEAP_SIZE}"}
 SPARQL_URL=$HOST/$CONTEXT/namespace/$NAMESPACE/sparql
 
 echo "Updating via $SPARQL_URL"
-exec java -cp ${CLASSPATH} ${MEMORY} ${GC_LOGS} ${LOG_OPTIONS} ${EXTRA_JVM_OPTS} \
+exec java -cp ${CLASSPATH} ${GC_LOGS} ${LOG_OPTIONS} ${EXTRA_JVM_OPTS} \
      ${TIMEOUT_ARG} ${UPDATER_OPTS} \
      ${MAIN} ${ARGS} --sparqlUrl ${SPARQL_URL} "$@"
