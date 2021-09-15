@@ -32,7 +32,9 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.stream.JsonReader;
 
+import org.apache.http.config.SocketConfig;
 import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.IdleConnectionEvictor;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.api.ContentResponse;
@@ -72,7 +74,6 @@ class WbStackUpdate {
     private static Properties buildProps;
     private static Closer metricsCloser;
     private static MetricRegistry metricRegistry;
-    private static PoolingHttpClientConnectionManager poolingConnectionManager;
 
     private static final Logger log = LoggerFactory.getLogger(org.wikidata.query.rdf.tool.WbStackUpdate.class);
     private static final long MAX_FORM_CONTENT_SIZE = Long.getLong("RDFRepositoryMaxPostSize", 200000000L);
@@ -97,7 +98,6 @@ class WbStackUpdate {
         buildProps = loadBuildProperties();
         metricsCloser = Closer.create();
         metricRegistry = createMetricRegistry(metricsCloser, "wdqs-updater");
-        poolingConnectionManager = (PoolingHttpClientConnectionManager) HttpClientUtils.createConnectionManager(metricRegistry, defaultTimeout);
     }
 
     private static void closeSingleUseServicesAndObjects() {
@@ -106,7 +106,6 @@ class WbStackUpdate {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        poolingConnectionManager.shutdown();
     }
 
     public static void main(String[] args) throws InterruptedException {
@@ -234,6 +233,19 @@ class WbStackUpdate {
     private static Updater<? extends Batch> initialize(String[] args, Closer closer) throws URISyntaxException {
         try {
             UpdateOptions options = (UpdateOptions)OptionsUtils.handleOptions(UpdateOptions.class, args);
+
+            // Don't use the ConnectionManager from HttpClientUtils as it constantly spawns Eviction threads that won't stop
+            PoolingHttpClientConnectionManager poolingConnectionManager = new PoolingHttpClientConnectionManager(-1, TimeUnit.SECONDS);
+            poolingConnectionManager.setDefaultMaxPerRoute(100);
+            poolingConnectionManager.setMaxTotal(100);
+            poolingConnectionManager.setDefaultSocketConfig(SocketConfig.copy(SocketConfig.DEFAULT)
+                .setSoTimeout(defaultTimeout)
+                .build());
+            closer.register(poolingConnectionManager);
+
+            IdleConnectionEvictor connectionEvictor = new IdleConnectionEvictor(poolingConnectionManager, 1L, TimeUnit.SECONDS);
+            connectionEvictor.start();
+            closer.register(new ClosableIdleConnectionEvictor(connectionEvictor));
 
             // CloseableHttpClient that is closed by WikibaseRepository.close, which is registered to the closer
             CloseableHttpClient httpClientApache = HttpClientUtils.createHttpClient( poolingConnectionManager, null, null, defaultTimeout);

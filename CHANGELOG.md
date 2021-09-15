@@ -1,6 +1,10 @@
 # queryservice-updater
 
-## 0.3.84_3.5 - 10th September 2021
+## 0.3.84_3.6 - 15th September 2021
+
+- Do not reuse poolingConnectionManager
+
+**0.3.84_3.5 - 10th September 2021**
 
 - Reduce log output on successfull runs (combining 2 lines)
 - Added WBSTACK_UPDATER_NAMESPACES with a default
