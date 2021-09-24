@@ -1,5 +1,8 @@
 package org.wikidata.query.rdf.tool;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.wikidata.query.rdf.tool.change.ChangeSourceContext.buildChangeSource;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
@@ -18,19 +21,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-
-import com.codahale.metrics.MetricRegistry;
-import com.codahale.metrics.jmx.JmxReporter;
-import com.github.rholder.retry.Retryer;
-import com.google.common.io.Closer;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonSyntaxException;
-import com.google.gson.stream.JsonReader;
 
 import org.apache.http.config.SocketConfig;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -56,18 +46,36 @@ import org.wikidata.query.rdf.tool.utils.NullStreamDumper;
 import org.wikidata.query.rdf.tool.utils.StreamDumper;
 import org.wikidata.query.rdf.tool.wikibase.WikibaseRepository;
 
-class WbStackUpdate {
+import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.jmx.JmxReporter;
+import com.github.rholder.retry.Retryer;
+import com.google.common.io.Closer;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonSyntaxException;
+import com.google.gson.stream.JsonReader;
+
+import de.thetaphi.forbiddenapis.SuppressForbidden;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
+@SuppressWarnings({"checkstyle:classfanoutcomplexity", "checkstyle:IllegalCatch"})  // this class needs to be split
+@SuppressForbidden  // direct use of System.out() / err() should be replaced by a proper logger
+public final class WbStackUpdate {
 
     private static final String USER_AGENT = "WBStack - Query Service - Updater";
     private static final Integer defaultTimeout = 10 * 1000;
 
-    // Static configuration, primarily from environemtn variables
+    // Static configuration, primarily from environment variables
     private static String wbStackApiEndpoint;
     private static long wbStackSleepBetweenApiCalls;
-    private static Integer wbStackUpdaterThreadCount;
+    private static int wbStackUpdaterThreadCount;
     private static String wbStackUpdaterNamespaces;
     private static String wbStackWikibaseScheme;
-    private static Integer wbStackLoopLimit;
+    private static int wbStackLoopLimit;
 
     // Globally reused services and objects
     private static Gson gson;
@@ -78,19 +86,24 @@ class WbStackUpdate {
     private static final Logger log = LoggerFactory.getLogger(org.wikidata.query.rdf.tool.WbStackUpdate.class);
     private static final long MAX_FORM_CONTENT_SIZE = Long.getLong("RDFRepositoryMaxPostSize", 200000000L);
 
+    private WbStackUpdate() {
+        // utility class, should never be constructed
+    }
 
     private static void setValuesFromEnvOrDie() {
-        if( System.getenv("WBSTACK_API_ENDPOINT") == null || System.getenv("WBSTACK_BATCH_SLEEP") == null || System.getenv("WBSTACK_LOOP_LIMIT") == null ) {
+        if (System.getenv("WBSTACK_API_ENDPOINT") == null
+                || System.getenv("WBSTACK_BATCH_SLEEP") == null
+                || System.getenv("WBSTACK_LOOP_LIMIT") == null) {
             System.err.println("WBSTACK_API_ENDPOINT, WBSTACK_BATCH_SLEEP and WBSTACK_LOOP_LIMIT environment variables must be set.");
             System.exit(1);
         }
 
         wbStackApiEndpoint = System.getenv("WBSTACK_API_ENDPOINT");
-        wbStackSleepBetweenApiCalls = Integer.parseInt(System.getenv("WBSTACK_BATCH_SLEEP"));
-        wbStackUpdaterThreadCount = Integer.parseInt(System.getenv().getOrDefault("WBSTACK_THREAD_COUNT", "10" ));
-        wbStackUpdaterNamespaces = System.getenv().getOrDefault("WBSTACK_UPDATER_NAMESPACES", "120,122,146" );
-        wbStackWikibaseScheme = System.getenv().getOrDefault("WBSTACK_WIKIBASE_SCHEME", "https" );
-        wbStackLoopLimit = Integer.parseInt( System.getenv("WBSTACK_LOOP_LIMIT") );
+        wbStackSleepBetweenApiCalls = Long.parseLong(System.getenv("WBSTACK_BATCH_SLEEP"));
+        wbStackUpdaterThreadCount = Integer.parseInt(System.getenv().getOrDefault("WBSTACK_THREAD_COUNT", "10"));
+        wbStackUpdaterNamespaces = System.getenv().getOrDefault("WBSTACK_UPDATER_NAMESPACES", "120,122,146");
+        wbStackWikibaseScheme = System.getenv().getOrDefault("WBSTACK_WIKIBASE_SCHEME", "https");
+        wbStackLoopLimit = Integer.parseInt(System.getenv("WBSTACK_LOOP_LIMIT"));
     }
 
     private static void setSingleUseServicesAndObjects() {
@@ -100,15 +113,11 @@ class WbStackUpdate {
         metricRegistry = createMetricRegistry(metricsCloser, "wdqs-updater");
     }
 
-    private static void closeSingleUseServicesAndObjects() {
-        try {
-            metricsCloser.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+    private static void closeSingleUseServicesAndObjects() throws IOException {
+        metricsCloser.close();
     }
 
-    public static void main(String[] args) throws InterruptedException {
+    public static void main(String[] args) throws InterruptedException, IOException {
         setValuesFromEnvOrDie();
         setSingleUseServicesAndObjects();
 
@@ -123,14 +132,14 @@ class WbStackUpdate {
             long memory = runtime.totalMemory() - runtime.freeMemory();
             int activeThreads = ManagementFactory.getThreadMXBean().getThreadCount();
             System.out.println(
-                            "Loop " + loopCount + "/" + wbStackLoopLimit + ". " +
+                    "Loop " + loopCount + "/" + wbStackLoopLimit + ". " +
                             "TotalM: " + (runtime.totalMemory() / (1024L * 1024L)) + ". " +
                             "FreeM: " + (runtime.freeMemory() / (1024L * 1024L)) + ". " +
                             "UsedM: " + (memory / (1024L * 1024L)) + ". " +
                             "MaxM: " + (runtime.maxMemory() / (1024L * 1024L)) + ". " +
                             "Threads: " + activeThreads
             );
-            sleepForRemainingTimeBetweenApiCalls( apiLastCalled );
+            sleepForRemainingTimeBetweenApiCalls(apiLastCalled);
         }
 
         System.out.println("Finished " + loopCount + " loops. Exiting...");
@@ -138,10 +147,10 @@ class WbStackUpdate {
         closeSingleUseServicesAndObjects();
     }
 
-    private static void sleepForRemainingTimeBetweenApiCalls( long loopLastStarted ) throws InterruptedException {
-        long secondsRunning = (System.currentTimeMillis() - loopLastStarted)/1000;
-        if(secondsRunning < wbStackSleepBetweenApiCalls ) {
-            TimeUnit.SECONDS.sleep(wbStackSleepBetweenApiCalls-secondsRunning);
+    private static void sleepForRemainingTimeBetweenApiCalls(long loopLastStarted) throws InterruptedException {
+        long secondsRunning = (System.currentTimeMillis() - loopLastStarted) / 1000;
+        if (secondsRunning < wbStackSleepBetweenApiCalls) {
+            TimeUnit.SECONDS.sleep(wbStackSleepBetweenApiCalls - secondsRunning);
         }
     }
 
@@ -149,7 +158,7 @@ class WbStackUpdate {
         try {
             JsonArray batches = getBatchesFromApi();
             for (JsonElement batchElement : batches) {
-                updateBatch( batchElement );
+                updateBatch(batchElement);
             }
         } catch (IOException e) {
             System.err.println(e.getMessage());
@@ -162,12 +171,12 @@ class WbStackUpdate {
         con.setRequestMethod("GET");
         con.setRequestProperty("User-Agent", USER_AGENT);
         int responseCode = con.getResponseCode();
-        if( responseCode != 200 ) {
+        if (responseCode != 200) {
             throw new IOException("Got non 200 response code from API: " + responseCode);
         }
 
         JsonElement batches = null;
-        try (JsonReader reader = new JsonReader(new InputStreamReader(con.getInputStream()))) {
+        try (JsonReader reader = new JsonReader(new InputStreamReader(con.getInputStream(), UTF_8))) {
             batches = gson.fromJson(reader, JsonElement.class);
             if (batches == null) {
                 System.err.println("Failed to get JsonArray from JsonReader (returning empty array)");
@@ -182,7 +191,7 @@ class WbStackUpdate {
         }
     }
 
-    private static void updateBatch( JsonElement batchElement ) {
+    private static void updateBatch(JsonElement batchElement) {
         // Get the values for the batch from the JSON
         JsonObject batch = batchElement.getAsJsonObject();
         String entityIDs = batch.get("entityIds").getAsString();
@@ -193,7 +202,7 @@ class WbStackUpdate {
         String qsNamespace = wikiQsNamespace.get("namespace").getAsString();
 
         // Run the main Update class with our altered args
-        runUpdaterWithArgs(new String[] {
+        runUpdaterWithArgs(new String[]{
                 "--wikibaseHost", domain,
                 "--ids", entityIDs,
                 "--entityNamespaces", wbStackUpdaterNamespaces,
@@ -205,12 +214,16 @@ class WbStackUpdate {
         // TODO on success maybe report back?
     }
 
+    @SuppressFBWarnings(value = "IMC_IMMATURE_CLASS_PRINTSTACKTRACE", justification = "We should introduce proper logging framework")
     private static void runUpdaterWithArgs(String[] args) {
         try {
             Closer closer = Closer.create();
 
             try {
-                log.info("Starting Updater {} ({}) {}", buildProps.getProperty("git.build.version", "UNKNOWN"), buildProps.getProperty("git.commit.id", "UNKNOWN"), String.join(" ", args));
+                log.info("Starting Updater {} ({}) {}",
+                        buildProps.getProperty("git.build.version", "UNKNOWN"),
+                        buildProps.getProperty("git.commit.id", "UNKNOWN"),
+                        String.join(" ", args));
                 Updater<? extends Batch> updater = initialize(args, closer);
                 try {
                     updater.run();
@@ -232,15 +245,15 @@ class WbStackUpdate {
 
     private static Updater<? extends Batch> initialize(String[] args, Closer closer) throws URISyntaxException {
         try {
-            UpdateOptions options = (UpdateOptions)OptionsUtils.handleOptions(UpdateOptions.class, args);
+            UpdateOptions options = (UpdateOptions) OptionsUtils.handleOptions(UpdateOptions.class, args);
 
             // Don't use the ConnectionManager from HttpClientUtils as it constantly spawns Eviction threads that won't stop
             PoolingHttpClientConnectionManager poolingConnectionManager = new PoolingHttpClientConnectionManager(-1, TimeUnit.SECONDS);
             poolingConnectionManager.setDefaultMaxPerRoute(100);
             poolingConnectionManager.setMaxTotal(100);
             poolingConnectionManager.setDefaultSocketConfig(SocketConfig.copy(SocketConfig.DEFAULT)
-                .setSoTimeout(defaultTimeout)
-                .build());
+                    .setSoTimeout(defaultTimeout)
+                    .build());
             closer.register(poolingConnectionManager);
 
             IdleConnectionEvictor connectionEvictor = new IdleConnectionEvictor(poolingConnectionManager, 1L, TimeUnit.SECONDS);
@@ -248,7 +261,7 @@ class WbStackUpdate {
             closer.register(new ClosableIdleConnectionEvictor(connectionEvictor));
 
             // CloseableHttpClient that is closed by WikibaseRepository.close, which is registered to the closer
-            CloseableHttpClient httpClientApache = HttpClientUtils.createHttpClient( poolingConnectionManager, null, null, defaultTimeout);
+            CloseableHttpClient httpClientApache = HttpClientUtils.createHttpClient(poolingConnectionManager, null, null, defaultTimeout);
             WikibaseRepository wikibaseRepository = new WikibaseRepository(
                     UpdateOptions.uris(options),
                     options.constraints(),
@@ -268,15 +281,18 @@ class WbStackUpdate {
             closer.register(wrapHttpClient(httpClientJetty));
             Retryer<ContentResponse> retryer = HttpClientUtils.buildHttpClientRetryer();
 
-            Duration rdfClientTimeout = org.wikidata.query.rdf.tool.Update.getRdfClientTimeout();
+            Duration rdfClientTimeout = Update.getRdfClientTimeout();
             RdfClient rdfClient = new RdfClient(httpClientJetty, sparqlUri, retryer, rdfClientTimeout);
             RdfRepository rdfRepository = new RdfRepository(wikibaseUris, rdfClient, MAX_FORM_CONTENT_SIZE);
 
             Instant startTime = ChangeSourceContext.getStartTime(UpdateOptions.startInstant(options), rdfRepository, options.init());
-            Source<? extends Batch> changeSource = ChangeSourceContext.buildChangeSource(options, startTime, wikibaseRepository, rdfClient, root, metricRegistry);
+            Source<? extends Batch> changeSource = buildChangeSource(options, startTime, wikibaseRepository, rdfClient, root, metricRegistry);
             Munger munger = OptionsUtils.mungerFromOptions(options);
             ExecutorService updaterExecutorService = createUpdaterExecutorService(wbStackUpdaterThreadCount);
-            Updater<? extends Batch> updater = createUpdater(wikibaseRepository, wikibaseUris, rdfRepository, changeSource, munger, updaterExecutorService, options.importAsync(), options.pollDelay(), options.verify(), metricRegistry);
+            Updater<? extends Batch> updater = createUpdater(
+                    wikibaseRepository, wikibaseUris, rdfRepository, changeSource,
+                    munger, updaterExecutorService, options.importAsync(),
+                    options.pollDelay(), options.verify(), metricRegistry);
             closer.register(updater);
 
             return updater;
@@ -287,10 +303,20 @@ class WbStackUpdate {
     }
 
     private static StreamDumper createStreamDumper(Path dumpDir) {
-        return (StreamDumper)(dumpDir == null ? new NullStreamDumper() : new FileStreamDumper(dumpDir));
+        return (StreamDumper) (dumpDir == null ? new NullStreamDumper() : new FileStreamDumper(dumpDir));
     }
 
-    private static Updater<? extends Batch> createUpdater(WikibaseRepository wikibaseRepository, UrisScheme uris, RdfRepository rdfRepository, Source<? extends Batch> changeSource, Munger munger, ExecutorService executor, boolean importAsync, int pollDelay, boolean verify, MetricRegistry metricRegistry) {
+    private static Updater<? extends Batch> createUpdater(
+            WikibaseRepository wikibaseRepository,
+            UrisScheme uris,
+            RdfRepository rdfRepository,
+            Source<? extends Batch> changeSource,
+            Munger munger,
+            ExecutorService executor,
+            boolean importAsync,
+            int pollDelay,
+            boolean verify,
+            MetricRegistry metricRegistry) {
         return new Updater(changeSource, wikibaseRepository, rdfRepository, munger, executor, importAsync, pollDelay, uris, verify, metricRegistry);
     }
 
@@ -307,15 +333,15 @@ class WbStackUpdate {
         return () -> {
             try {
                 httpClient.stop();
-            } catch (Exception var2) {
-                throw new RuntimeException("Could not close HttpClient", var2);
+            } catch (Exception e) {
+                throw new RuntimeException("Could not close HttpClient", e);
             }
         };
     }
 
     private static MetricRegistry createMetricRegistry(Closer closer, String metricDomain) {
         MetricRegistry metrics = new MetricRegistry();
-        JmxReporter reporter = (JmxReporter)closer.register(JmxReporter.forRegistry(metrics).inDomain(metricDomain).build());
+        JmxReporter reporter = (JmxReporter) closer.register(JmxReporter.forRegistry(metrics).inDomain(metricDomain).build());
         reporter.start();
         return metrics;
     }
@@ -326,34 +352,11 @@ class WbStackUpdate {
 
     private static Properties loadBuildProperties() {
         Properties prop = new Properties();
-
-        try {
-            InputStream instream = org.wikidata.query.rdf.tool.Update.class.getClassLoader().getResourceAsStream("git.properties");
-            Throwable var2 = null;
-
-            try {
-                prop.load(instream);
-            } catch (Throwable var12) {
-                var2 = var12;
-                throw var12;
-            } finally {
-                if (instream != null) {
-                    if (var2 != null) {
-                        try {
-                            instream.close();
-                        } catch (Throwable var11) {
-                            var2.addSuppressed(var11);
-                        }
-                    } else {
-                        instream.close();
-                    }
-                }
-
-            }
-        } catch (IOException var14) {
-            log.warn("Failed to load properties file");
+        try (InputStream instream = Update.class.getClassLoader().getResourceAsStream("git.properties");) {
+            prop.load(instream);
+        } catch (IOException ioe) {
+            log.warn("Failed to load properties file", ioe);
         }
-
         return prop;
     }
 }
