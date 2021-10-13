@@ -1,9 +1,5 @@
 # queryservice-updater
 
-## 0.3.84_3.7 - 24th September 2021
-
-- Refactoring etc from gehl
-
 ## 0.3.84_3.6 - 15th September 2021
 
 - Do not reuse poolingConnectionManager
