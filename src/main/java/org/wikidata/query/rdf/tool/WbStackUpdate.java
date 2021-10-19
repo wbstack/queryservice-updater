@@ -76,6 +76,7 @@ public final class WbStackUpdate {
     private static String wbStackUpdaterNamespaces;
     private static String wbStackWikibaseScheme;
     private static int wbStackLoopLimit;
+    private static String wbStackProxyMapIngress;
 
     // Globally reused services and objects
     private static Gson gson;
@@ -98,6 +99,7 @@ public final class WbStackUpdate {
             System.exit(1);
         }
 
+        wbStackProxyMapIngress = System.getenv("WBSTACK_PROXYMAP_INGRESS");
         wbStackApiEndpoint = System.getenv("WBSTACK_API_ENDPOINT");
         wbStackSleepBetweenApiCalls = Long.parseLong(System.getenv("WBSTACK_BATCH_SLEEP"));
         wbStackUpdaterThreadCount = Integer.parseInt(System.getenv().getOrDefault("WBSTACK_THREAD_COUNT", "10"));
@@ -243,6 +245,14 @@ public final class WbStackUpdate {
         }
     }
 
+    private static String getProxyMapString( UpdateOptions options ) {
+        if ( wbStackProxyMapIngress == null ) {
+            return null;
+        }
+
+        return options.wikibaseHost() + "=" + wbStackProxyMapIngress;
+    }
+
     private static Updater<? extends Batch> initialize(String[] args, Closer closer) throws URISyntaxException {
         try {
             UpdateOptions options = (UpdateOptions) OptionsUtils.handleOptions(UpdateOptions.class, args);
@@ -261,7 +271,13 @@ public final class WbStackUpdate {
             closer.register(new ClosableIdleConnectionEvictor(connectionEvictor));
 
             // CloseableHttpClient that is closed by WikibaseRepository.close, which is registered to the closer
-            CloseableHttpClient httpClientApache = HttpClientUtils.createHttpClient(poolingConnectionManager, null, null, defaultTimeout);
+            CloseableHttpClient httpClientApache = HttpClientUtils.createHttpClient(
+                    poolingConnectionManager,
+                    null,
+                    getProxyMapString( options ), // ex: platform-nginx.default.svc.cluster.local:8080",
+                    defaultTimeout
+            );
+
             WikibaseRepository wikibaseRepository = new WikibaseRepository(
                     UpdateOptions.uris(options),
                     options.constraints(),
@@ -271,6 +287,7 @@ public final class WbStackUpdate {
                     RDFParserSuppliers.defaultRdfParser(),
                     httpClientApache
             );
+
             closer.register(wikibaseRepository);
 
             UrisScheme wikibaseUris = WikibaseOptions.wikibaseUris(options);
