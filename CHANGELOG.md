@@ -1,5 +1,9 @@
 # queryservice-updater
 
+## 0.3.84_3.8 - 21st October 2021
+
+- Add `WBSTACK_PROXYMAP_INGRESS` support
+
 ## 0.3.84_3.7 - 24th September 2021
 
 - Refactoring etc from gehl
