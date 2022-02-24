@@ -75,6 +75,7 @@ public final class WbStackUpdate {
     private static int wbStackUpdaterThreadCount;
     private static String wbStackUpdaterNamespaces;
     private static String wbStackWikibaseScheme;
+    private static String wbStackWikibaseConceptURIScheme;
     private static int wbStackLoopLimit;
     private static String wbStackProxyMapIngress;
 
@@ -105,6 +106,7 @@ public final class WbStackUpdate {
         wbStackUpdaterThreadCount = Integer.parseInt(System.getenv().getOrDefault("WBSTACK_THREAD_COUNT", "10"));
         wbStackUpdaterNamespaces = System.getenv().getOrDefault("WBSTACK_UPDATER_NAMESPACES", "120,122,146");
         wbStackWikibaseScheme = System.getenv().getOrDefault("WBSTACK_WIKIBASE_SCHEME", "https");
+        wbStackWikibaseConceptURIScheme = System.getenv().getOrDefault("WBSTACK_WIKIBASE_CONCEPT_URI_SCHEME", "http");
         wbStackLoopLimit = Integer.parseInt(System.getenv("WBSTACK_LOOP_LIMIT"));
     }
 
@@ -210,7 +212,7 @@ public final class WbStackUpdate {
                 "--entityNamespaces", wbStackUpdaterNamespaces,
                 "--sparqlUrl", "http://" + qsBackend + "/bigdata/namespace/" + qsNamespace + "/sparql",
                 "--wikibaseScheme", wbStackWikibaseScheme,
-                "--conceptUri", "http://" + domain
+                "--conceptUri", wbStackWikibaseConceptURIScheme + domain
         });
 
         // TODO on success maybe report back?
