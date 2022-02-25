@@ -25,7 +25,6 @@ services:
         aliases:
           - wdqs-updater.svc
     environment:
-      - WBSTACK_WIKIBASE_CONCEPT_URI_SCHEME=http://
       - WBSTACK_WIKIBASE_SCHEME=http
       - WBSTACK_LOOP_LIMIT=100
       - WBSTACK_API_ENDPOINT=http://api.svc:3030
