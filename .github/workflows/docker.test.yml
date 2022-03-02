@@ -31,8 +31,8 @@ jobs:
       - name: Make a sparql request
         run: |
           NUM_BINDINGS=$(curl 'http://localhost:9999/bigdata/namespace/wdq/sparql' -H 'Accept: application/sparql-results+json' --data-raw 'query=SELECT+*+WHERE%7B+%3Fs+%3Fp+%3Fo+%7D' | jq '.results.bindings | length')
-          # should be plenty more than 10
-          if [[ "$NUM_BINDINGS" -lt 10 ]]; then
+          # should be plenty more than 100
+          if [[ "$NUM_BINDINGS" -lt 100 ]]; then
               exit 1
           fi
       - name: docker-compose logs > output.log

@@ -48,6 +48,8 @@ services:
       default:
         aliases:
           - wikibase.svc
+    volumes:
+      - ./LocalSettings.ci.php:/var/www/html/LocalSettings.d/LocalSettings.override.php
     environment:
       DB_SERVER: mysql.svc:3306
       MW_ADMIN_NAME:
