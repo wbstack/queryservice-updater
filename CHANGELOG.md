@@ -1,5 +1,9 @@
 # queryservice-updater
 
+## 0.3.84_3.9 - February 2021
+
+- T301141: Hardcode wikibase concept uri scheme to HTTPS
+
 ## 0.3.84_3.8 - 21st October 2021
 
 - Add `WBSTACK_PROXYMAP_INGRESS` support

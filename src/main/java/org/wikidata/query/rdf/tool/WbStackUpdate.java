@@ -210,7 +210,7 @@ public final class WbStackUpdate {
                 "--entityNamespaces", wbStackUpdaterNamespaces,
                 "--sparqlUrl", "http://" + qsBackend + "/bigdata/namespace/" + qsNamespace + "/sparql",
                 "--wikibaseScheme", wbStackWikibaseScheme,
-                "--conceptUri", "http://" + domain
+                "--conceptUri", "https://" + domain
         });
 
         // TODO on success maybe report back?
