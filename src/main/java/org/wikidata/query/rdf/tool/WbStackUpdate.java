@@ -7,6 +7,8 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.io.OutputStream;
 import java.lang.management.ManagementFactory;
 import java.net.HttpURLConnection;
 import java.net.URI;
@@ -71,6 +73,8 @@ public final class WbStackUpdate {
 
     // Static configuration, primarily from environment variables
     private static String wbStackApiEndpoint;
+    private static String wbStackApiEndpointMarkDone;
+    private static String wbStackApiEndpointMarkFailed;
     private static long wbStackSleepBetweenApiCalls;
     private static int wbStackUpdaterThreadCount;
     private static String wbStackUpdaterNamespaces;
@@ -93,6 +97,8 @@ public final class WbStackUpdate {
 
     private static void setValuesFromEnvOrDie() {
         if (System.getenv("WBSTACK_API_ENDPOINT") == null
+                || System.getenv("WBSTACK_API_ENDPOINT_MARK_FAILED") == null
+                || System.getenv("WBSTACK_API_ENDPOINT_MARK_DONE") == null
                 || System.getenv("WBSTACK_BATCH_SLEEP") == null
                 || System.getenv("WBSTACK_LOOP_LIMIT") == null) {
             System.err.println("WBSTACK_API_ENDPOINT, WBSTACK_BATCH_SLEEP and WBSTACK_LOOP_LIMIT environment variables must be set.");
@@ -101,6 +107,8 @@ public final class WbStackUpdate {
 
         wbStackProxyMapIngress = System.getenv("WBSTACK_PROXYMAP_INGRESS");
         wbStackApiEndpoint = System.getenv("WBSTACK_API_ENDPOINT");
+        wbStackApiEndpointMarkFailed = System.getenv("WBSTACK_API_ENDPOINT_MARK_FAILED");
+        wbStackApiEndpointMarkDone = System.getenv("WBSTACK_API_ENDPOINT_MARK_DONE");
         wbStackSleepBetweenApiCalls = Long.parseLong(System.getenv("WBSTACK_BATCH_SLEEP"));
         wbStackUpdaterThreadCount = Integer.parseInt(System.getenv().getOrDefault("WBSTACK_THREAD_COUNT", "10"));
         wbStackUpdaterNamespaces = System.getenv().getOrDefault("WBSTACK_UPDATER_NAMESPACES", "120,122,146");
@@ -193,10 +201,37 @@ public final class WbStackUpdate {
         }
     }
 
+    private static void updateRemoteBatchStatus(int batchId, boolean success) throws IOException {
+        URL obj = new URL(success ? wbStackApiEndpointMarkDone : wbStackApiEndpointMarkFailed);
+        HttpURLConnection con = (HttpURLConnection) obj.openConnection();
+        con.setRequestMethod("POST");
+        con.setRequestProperty("User-Agent", USER_AGENT);
+        con.setDoOutput(true);
+
+        JsonObject body = new JsonObject();
+        JsonArray batches = new JsonArray();
+        batches.add(batchId);
+        body.add("batches", batches);
+
+        OutputStream os = con.getOutputStream();
+        OutputStreamWriter osw = new OutputStreamWriter(os, "UTF-8");
+        osw.write(body.toString());
+        osw.flush();
+        osw.close();
+        os.close();
+        con.connect();
+
+        int responseCode = con.getResponseCode();
+        if (responseCode != 200) {
+            throw new IOException("Got non 200 response code from API: " + responseCode);
+        }
+    }
+
     private static void updateBatch(JsonElement batchElement) {
         // Get the values for the batch from the JSON
         JsonObject batch = batchElement.getAsJsonObject();
         String entityIDs = batch.get("entityIds").getAsString();
+        int batchId = batch.get("id").getAsInt();
         JsonObject wiki = batch.get("wiki").getAsJsonObject();
         String domain = wiki.get("domain").getAsString();
         JsonObject wikiQsNamespace = wiki.get("wiki_queryservice_namespace").getAsJsonObject();
@@ -204,7 +239,7 @@ public final class WbStackUpdate {
         String qsNamespace = wikiQsNamespace.get("namespace").getAsString();
 
         // Run the main Update class with our altered args
-        runUpdaterWithArgs(new String[]{
+        boolean updateWasSuccessful = runUpdaterWithArgs(new String[]{
                 "--wikibaseHost", domain,
                 "--ids", entityIDs,
                 "--entityNamespaces", wbStackUpdaterNamespaces,
@@ -213,11 +248,16 @@ public final class WbStackUpdate {
                 "--conceptUri", "https://" + domain
         });
 
-        // TODO on success maybe report back?
+        try {
+            updateRemoteBatchStatus(batchId, updateWasSuccessful);
+        } catch (Exception ex) {
+            System.err.println("Failed to update remote batch status.");
+            ex.printStackTrace();
+        }
     }
 
     @SuppressFBWarnings(value = "IMC_IMMATURE_CLASS_PRINTSTACKTRACE", justification = "We should introduce proper logging framework")
-    private static void runUpdaterWithArgs(String[] args) {
+    private static boolean runUpdaterWithArgs(String[] args) {
         try {
             Closer closer = Closer.create();
 
@@ -242,7 +282,9 @@ public final class WbStackUpdate {
         } catch (Exception e) {
             System.err.println("Failed batch!");
             e.printStackTrace();
+            return false;
         }
+        return true;
     }
 
     private static String getProxyMapString( UpdateOptions options ) {

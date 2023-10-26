@@ -1,9 +1,16 @@
 var http = require('http');
 const wbEdit = require( 'wikibase-edit' )( require( './wikibase-edit.config' ) );
 
+let batchId = 1;
+
 http.createServer(function (req, res) {
     (async () => {
         switch (req.url) {
+        case '/markDone':
+        case '/markFailed':
+            res.writeHead(200);
+            res.end('1');
+            return;
         case '/getBatches':
             const numEntities = 20;
             const entities = [];
@@ -26,6 +33,7 @@ http.createServer(function (req, res) {
             console.log(new Date().toISOString());
 
             responseObject = {
+                'id': batchId++,
                 'entityIds': entities.join(','),
                 'wiki': {
                     'domain': process.env.API_WIKIBASE_DOMAIN,

@@ -23,7 +23,7 @@ jobs:
       - name: Wait for some things to be inserted
         uses: nick-invision/retry@v2
         with:
-          timeout_minutes: 5
+          timeout_minutes: 10
           max_attempts: 50
           retry_wait_seconds: 2
           warning_on_retry: false

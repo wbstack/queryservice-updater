@@ -1,8 +1,11 @@
 FROM maven:3.6.3-jdk-8 as jarjar
 
-COPY ./ /tmp
 WORKDIR /tmp
-RUN mvn clean compile assembly:single
+COPY ./pom.xml /tmp/pom.xml
+RUN mvn clean install
+
+COPY ./ /tmp
+RUN mvn compile assembly:single
 
 
 FROM openjdk:8-jdk-alpine
