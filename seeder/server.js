@@ -38,6 +38,7 @@ http.createServer(function (req, res) {
             };
             res.writeHead(200, {'Content-Type': 'text/json'});
             res.end(JSON.stringify([responseObject]));
+            return;
         default:
             res.writeHead(404);
             res.end('Not found');
