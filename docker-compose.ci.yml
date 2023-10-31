@@ -1,18 +1,5 @@
 version: '2'
 services:
-
-  wikibase:
-    networks:
-      default:
-        aliases:
-          - some-cool-internal-hostname.svc
-
-  api:
-    environment:
-      - API_WIKIBASE_DOMAIN=wikibase.svc
-      - API_WDQS_BACKEND=wdqs.svc:9999
-      - WBSTACK_PROXYMAP_INGRESS="some-cool-internal-hostname.svc:80"
-
   wdqs-updater:
     build:
       context: .
@@ -27,7 +14,7 @@ services:
     environment:
       - WBSTACK_WIKIBASE_SCHEME=http
       - WBSTACK_LOOP_LIMIT=100
-      - WBSTACK_API_ENDPOINT=http://api.svc:3030
+      - WBSTACK_API_ENDPOINT=http://api.svc:3030/getBatches
       - WBSTACK_BATCH_SLEEP=1
       - WIKIBASE_HOST=wikibase.svc
       - HEAP_SIZE=32m

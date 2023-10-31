@@ -1,4 +1,5 @@
-version: '2'
+version: '3'
+
 services:
   wdqs:
     image: ghcr.io/wbstack/queryservice:main
@@ -31,9 +32,12 @@ services:
       default:
         aliases:
           - api.svc
+    depends_on:
+      wikibase:
+        condition: service_healthy
     environment:
-      - API_WIKIBASE_DOMAIN=localhost
-      - API_WDQS_BACKEND=localhost:9999
+      - API_WIKIBASE_DOMAIN=wikibase.svc
+      - API_WDQS_BACKEND=wdqs.svc:9999
 
   wikibase:
     image: "${WIKIBASE_IMAGE_NAME}"
@@ -48,6 +52,11 @@ services:
       default:
         aliases:
           - wikibase.svc
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/w/api.php"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
     volumes:
       - ./LocalSettings.ci.php:/var/www/html/LocalSettings.d/LocalSettings.override.php
     environment:
@@ -59,7 +68,7 @@ services:
       DB_USER: ${DB_USER}
       DB_PASS: ${DB_PASS}
       DB_NAME: ${DB_NAME}
-      WIKIBASEHOST:
+      WIKIBASE_HOST: ${WIKIBASE_HOST}
 
   mysql:
     image: "${MYSQL_IMAGE_NAME}"
@@ -76,6 +85,7 @@ services:
       default:
         aliases:
           - mysql.svc
+
 volumes:
   query-service-data:
   mediawiki-mysql-data:
