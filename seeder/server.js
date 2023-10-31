@@ -1,4 +1,5 @@
-var http = require('http');
+const http = require('http');
+const assert = require('assert');
 const wbEdit = require( 'wikibase-edit' )( require( './wikibase-edit.config' ) );
 
 let batchId = 1;
@@ -9,12 +10,44 @@ http.createServer(function (req, res) {
         case '/markDone':
         case '/markFailed':
             if (req.method !== 'POST') {
-                return { status: 405, body: 'Method not allowed' };
+                const err = new Error('Method not allowed');
+                err.status = 405;
+                return Promise.reject(err);
             }
-            return { status: 200, body: '1' };
+            return new Promise((resolve, reject) => {
+                const body = [];
+                req
+                    .on('error', (err) => {
+                        reject(err);
+                    })
+                    .on('data', (chunk) => {
+                        body.push(chunk);
+                    })
+                    .on('end', () => {
+                        try {
+                            const jsonBody = JSON.parse(
+                                Buffer.concat(body).toString('utf8')
+                            );
+                            assert(
+                                Array.isArray(jsonBody.batches),
+                                'Expected a `batches` property on the request body.'
+                            );
+                            assert(
+                                jsonBody.batches.length,
+                                'Expected `batches` to be a non-empty array.'
+                            );
+                        } catch (err) {
+                            reject(err);
+                            return;
+                        }
+                        resolve({ status: 200, body: '1' });
+                    })
+            });
         case '/getBatches':
             if (req.method !== 'GET') {
-                return { status: 405, body: 'Method not allowed' };
+                const err = new Error('Method not allowed');
+                err.status = 405;
+                return Promise.reject(err);
             }
             const numEntities = 20;
             const entities = [];
@@ -54,12 +87,14 @@ http.createServer(function (req, res) {
                 body: JSON.stringify([responseObject])
             };
         default:
-            return { status: 404, body: 'Not found' };
+            const err = new Error('Not found');
+            err.status = 404;
+            return Promise.reject(err);
         }
     })()
         .catch((err) => {
-            console.error('Failed handling request: %s', err.message);
-            return { status: 500, body: err.message };
+            console.error('[FAILURE] Failed handling request: %s', err.message);
+            return { status: err.status || 500, body: err.message };
         })
         .then((result) => {
             res.writeHead(result.status, result.headers);
