@@ -8,10 +8,14 @@ http.createServer(function (req, res) {
         switch (req.url) {
         case '/markDone':
         case '/markFailed':
-            res.writeHead(200);
-            res.end('1');
-            return;
+            if (req.method !== 'POST') {
+                return { status: 405, body: 'Method not allowed' };
+            }
+            return { status: 200, body: '1' };
         case '/getBatches':
+            if (req.method !== 'GET') {
+                return { status: 405, body: 'Method not allowed' };
+            }
             const numEntities = 20;
             const entities = [];
 
@@ -44,17 +48,21 @@ http.createServer(function (req, res) {
                 },
 
             };
-            res.writeHead(200, {'Content-Type': 'text/json'});
-            res.end(JSON.stringify([responseObject]));
-            return;
+            return {
+                status: 200,
+                headers: {'Content-Type': 'text/json'},
+                body: JSON.stringify([responseObject])
+            };
         default:
-            res.writeHead(404);
-            res.end('Not found');
+            return { status: 404, body: 'Not found' };
         }
     })()
         .catch((err) => {
             console.error('Failed handling request: %s', err.message);
-            res.writeHead(500);
-            res.end(err.message);
+            return { status: 500, body: err.message };
+        })
+        .then((result) => {
+            res.writeHead(result.status, result.headers);
+            res.end(result.body)
         })
 }).listen(3030);
