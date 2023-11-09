@@ -14,7 +14,7 @@ services:
     environment:
       - WBSTACK_WIKIBASE_SCHEME=http
       - WBSTACK_LOOP_LIMIT=100
-      - WBSTACK_API_ENDPOINT=http://api.svc:3030/getBatches
+      - WBSTACK_API_ENDPOINT_GET_BATCHES=http://api.svc:3030/getBatches
       - WBSTACK_API_ENDPOINT_MARK_FAILED=http://api.svc:3030/markFailed
       - WBSTACK_API_ENDPOINT_MARK_DONE=http://api.svc:3030/markDone
       - WBSTACK_BATCH_SLEEP=1

@@ -106,7 +106,7 @@ public final class WbStackUpdate {
         }
 
         wbStackProxyMapIngress = System.getenv("WBSTACK_PROXYMAP_INGRESS");
-        wbStackApiEndpoint = System.getenv("WBSTACK_API_ENDPOINT");
+        wbStackApiEndpoint = System.getenv("WBSTACK_API_ENDPOINT_GET_BATCHES");
         wbStackApiEndpointMarkFailed = System.getenv("WBSTACK_API_ENDPOINT_MARK_FAILED");
         wbStackApiEndpointMarkDone = System.getenv("WBSTACK_API_ENDPOINT_MARK_DONE");
         wbStackSleepBetweenApiCalls = Long.parseLong(System.getenv("WBSTACK_BATCH_SLEEP"));
