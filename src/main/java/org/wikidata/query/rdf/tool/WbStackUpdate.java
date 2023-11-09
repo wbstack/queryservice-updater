@@ -74,7 +74,7 @@ public final class WbStackUpdate {
     // Static configuration, primarily from environment variables
     private static String wbStackApiEndpoint;
     private static String wbStackApiEndpointMarkDone;
-    private static String wbStackApiEndpointMarkFailed;
+    private static String wbStackApiEndpointMarkNotDone;
     private static long wbStackSleepBetweenApiCalls;
     private static int wbStackUpdaterThreadCount;
     private static String wbStackUpdaterNamespaces;
@@ -96,18 +96,18 @@ public final class WbStackUpdate {
     }
 
     private static void setValuesFromEnvOrDie() {
-        if (System.getenv("WBSTACK_API_ENDPOINT") == null
-                || System.getenv("WBSTACK_API_ENDPOINT_MARK_FAILED") == null
+        if (System.getenv("WBSTACK_API_ENDPOINT_GET_BATCHES") == null
+                || System.getenv("WBSTACK_API_ENDPOINT_MARK_NOT_DONE") == null
                 || System.getenv("WBSTACK_API_ENDPOINT_MARK_DONE") == null
                 || System.getenv("WBSTACK_BATCH_SLEEP") == null
                 || System.getenv("WBSTACK_LOOP_LIMIT") == null) {
-            System.err.println("WBSTACK_API_ENDPOINT, WBSTACK_BATCH_SLEEP and WBSTACK_LOOP_LIMIT environment variables must be set.");
+            System.err.println("WBSTACK_API_ENDPOINT_*, WBSTACK_BATCH_SLEEP and WBSTACK_LOOP_LIMIT environment variables must be set.");
             System.exit(1);
         }
 
         wbStackProxyMapIngress = System.getenv("WBSTACK_PROXYMAP_INGRESS");
         wbStackApiEndpoint = System.getenv("WBSTACK_API_ENDPOINT_GET_BATCHES");
-        wbStackApiEndpointMarkFailed = System.getenv("WBSTACK_API_ENDPOINT_MARK_FAILED");
+        wbStackApiEndpointMarkNotDone = System.getenv("WBSTACK_API_ENDPOINT_MARK_FAILED");
         wbStackApiEndpointMarkDone = System.getenv("WBSTACK_API_ENDPOINT_MARK_DONE");
         wbStackSleepBetweenApiCalls = Long.parseLong(System.getenv("WBSTACK_BATCH_SLEEP"));
         wbStackUpdaterThreadCount = Integer.parseInt(System.getenv().getOrDefault("WBSTACK_THREAD_COUNT", "10"));
@@ -202,7 +202,7 @@ public final class WbStackUpdate {
     }
 
     private static void updateRemoteBatchStatus(int batchId, boolean success) throws IOException {
-        URL obj = new URL(success ? wbStackApiEndpointMarkDone : wbStackApiEndpointMarkFailed);
+        URL obj = new URL(success ? wbStackApiEndpointMarkDone : wbStackApiEndpointMarkNotDone);
         HttpURLConnection con = (HttpURLConnection) obj.openConnection();
         con.setRequestMethod("POST");
         con.setRequestProperty("User-Agent", USER_AGENT);

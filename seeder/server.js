@@ -8,7 +8,7 @@ http.createServer(function (req, res) {
     (async () => {
         switch (req.url) {
         case '/markDone':
-        case '/markFailed':
+        case '/markNotDone':
             if (req.method !== 'POST') {
                 const err = new Error('Method not allowed');
                 err.status = 405;
