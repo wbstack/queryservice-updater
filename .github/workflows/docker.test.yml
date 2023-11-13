@@ -27,7 +27,21 @@ jobs:
           max_attempts: 50
           retry_wait_seconds: 2
           warning_on_retry: false
-          command: if (($(docker-compose ${{ env.COMPOSE_ARGS }} logs wdqs-updater | grep "org.wikidata.query.rdf.tool.Updater - Polled" | wc -l) >= 10)); then exit 0; else exit 1; fi
+          command: |
+            num_lines=$(docker-compose ${{ env.COMPOSE_ARGS }} logs wdqs-updater | grep "org.wikidata.query.rdf.tool.Updater - Polled" | wc -l)
+            if [ $num_lines -gt 9 ]; then
+              exit 0;
+            else
+              echo "Found $num_lines lines, retrying."
+              exit 1;
+            fi
+      - name: Check that Mock API server did not fail assertions
+        run: |
+          num_failures=$(docker-compose ${{ env.COMPOSE_ARGS }} logs api | grep "\[FAILURE\]" | wc -l)
+          echo "Found $num_failures failures."
+          if [ $num_failures -gt 0 ];
+            then exit 1
+          fi
       - name: Make a sparql request
         run: |
           NUM_BINDINGS=$(curl 'http://localhost:9999/bigdata/namespace/wdq/sparql' -H 'Accept: application/sparql-results+json' --data-raw 'query=SELECT+*+WHERE%7B+%3Fs+%3Fp+%3Fo+%7D' | jq '.results.bindings | length')
