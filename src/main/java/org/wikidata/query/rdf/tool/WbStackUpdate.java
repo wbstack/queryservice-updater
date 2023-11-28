@@ -135,14 +135,14 @@ public final class WbStackUpdate {
         long apiLastCalled;
 
         Runtime runtime = Runtime.getRuntime();
-        while (loopCount < wbStackLoopLimit) {
+        while (wbStackLoopLimit == -1 || loopCount < wbStackLoopLimit) {
             loopCount++;
             apiLastCalled = System.currentTimeMillis();
             getAndProcessBatchesFromApi();
             long memory = runtime.totalMemory() - runtime.freeMemory();
             int activeThreads = ManagementFactory.getThreadMXBean().getThreadCount();
             System.out.println(
-                    "Loop " + loopCount + "/" + wbStackLoopLimit + ". " +
+                    "Loop " + loopCount + "/" + (wbStackLoopLimit == -1 ? "Infinity" : wbStackLoopLimit) + ". " +
                             "TotalM: " + (runtime.totalMemory() / (1024L * 1024L)) + ". " +
                             "FreeM: " + (runtime.freeMemory() / (1024L * 1024L)) + ". " +
                             "UsedM: " + (memory / (1024L * 1024L)) + ". " +

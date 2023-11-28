@@ -1,5 +1,13 @@
 # queryservice-updater
 
+## 0.3.84_3.11 - November 2023
+
+- T352157: Support running loop forever and without forced exit
+
+## 0.3.84_3.10 - November 2023
+
+- T333163: Signal update success/failure to api
+
 ## 0.3.84_3.9 - February 2021
 
 - T301141: Hardcode wikibase concept uri scheme to HTTPS
