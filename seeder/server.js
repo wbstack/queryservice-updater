@@ -67,8 +67,6 @@ http.createServer(function (req, res) {
                 entities.push(entity.id)
             }
 
-            console.log(new Date().toISOString());
-
             responseObject = {
                 'id': batchId++,
                 'entityIds': entities.join(','),
