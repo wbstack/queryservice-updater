@@ -100,4 +100,4 @@ SPARQL_URL=$HOST/$CONTEXT/namespace/$NAMESPACE/sparql
 echo "Updating via $SPARQL_URL"
 exec java -cp ${CLASSPATH} ${GC_LOGS} ${LOG_OPTIONS} ${EXTRA_JVM_OPTS} \
      ${TIMEOUT_ARG} ${UPDATER_OPTS} \
-     ${MAIN} ${ARGS} --sparqlUrl ${SPARQL_URL} "$@"
+     ${MAIN} ${ARGS} "$@"

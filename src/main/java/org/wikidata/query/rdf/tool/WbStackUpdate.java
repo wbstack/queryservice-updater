@@ -128,6 +128,16 @@ public final class WbStackUpdate {
     }
 
     public static void main(String[] args) throws InterruptedException, IOException {
+        if (args.length != 0) {
+            boolean success = runUpdaterWithArgs(args);
+            if (!success) {
+                System.err.println("Failed to run update command.");
+                System.exit(1);
+            }
+            System.err.println("Successfully ran update command.");
+            System.exit(0);
+        }
+
         setValuesFromEnvOrDie();
         setSingleUseServicesAndObjects();
 
