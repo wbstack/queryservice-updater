@@ -1,4 +1,4 @@
-name: Docker test
+name: Docker test run as service
 
 on:
   push:
@@ -11,7 +11,7 @@ on:
 jobs:
   docker-test:
     env:
-      COMPOSE_ARGS: -f docker-compose.yml -f docker-compose.ci.yml
+      COMPOSE_ARGS: -f docker-compose.yml -f docker-compose.ci.service.yml
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

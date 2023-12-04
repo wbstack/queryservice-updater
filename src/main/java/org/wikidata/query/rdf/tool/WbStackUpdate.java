@@ -95,7 +95,7 @@ public final class WbStackUpdate {
         // utility class, should never be constructed
     }
 
-    private static void setValuesFromEnvOrDie() {
+    private static void setServiceValuesFromEnvOrDie() {
         if (System.getenv("WBSTACK_API_ENDPOINT_GET_BATCHES") == null
                 || System.getenv("WBSTACK_API_ENDPOINT_MARK_NOT_DONE") == null
                 || System.getenv("WBSTACK_API_ENDPOINT_MARK_DONE") == null
@@ -116,6 +116,10 @@ public final class WbStackUpdate {
         wbStackLoopLimit = Integer.parseInt(System.getenv("WBSTACK_LOOP_LIMIT"));
     }
 
+    public static void setCommandValuesFromEnvOrDie() {
+        wbStackUpdaterThreadCount = Integer.parseInt(System.getenv().getOrDefault("WBSTACK_THREAD_COUNT", "10"));
+    }
+
     private static void setSingleUseServicesAndObjects() {
         gson = new GsonBuilder().setPrettyPrinting().create();
         buildProps = loadBuildProperties();
@@ -128,8 +132,12 @@ public final class WbStackUpdate {
     }
 
     public static void main(String[] args) throws InterruptedException, IOException {
+        setSingleUseServicesAndObjects();
+
         if (args.length != 0) {
+            setCommandValuesFromEnvOrDie();
             boolean success = runUpdaterWithArgs(args);
+            closeSingleUseServicesAndObjects();
             if (!success) {
                 System.err.println("Failed to run update command.");
                 System.exit(1);
@@ -138,8 +146,7 @@ public final class WbStackUpdate {
             System.exit(0);
         }
 
-        setValuesFromEnvOrDie();
-        setSingleUseServicesAndObjects();
+        setServiceValuesFromEnvOrDie();
 
         int loopCount = 0;
         long apiLastCalled;
@@ -290,7 +297,7 @@ public final class WbStackUpdate {
             }
 
         } catch (Exception e) {
-            System.err.println("Failed batch!");
+            System.err.println("Failed batch: " + e.getMessage());
             e.printStackTrace();
             return false;
         }

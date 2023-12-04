@@ -1,0 +1,13 @@
+version: '2'
+services:
+  wdqs-updater:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    tty: true
+    entrypoint: /bin/bash
+    depends_on:
+      - wdqs
+    environment:
+      - HEAP_SIZE=32m
