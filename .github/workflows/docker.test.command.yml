@@ -22,7 +22,7 @@ jobs:
 
       - name: Create entities
         run: |
-          docker compose exec api /usr/src/app/create-entities.js 40
+          docker compose exec api /usr/src/app/seeder.js 40
 
       - name: Run updater
         run: |

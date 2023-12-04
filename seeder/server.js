@@ -1,6 +1,6 @@
 const http = require('http');
 const assert = require('assert');
-const wbEdit = require( 'wikibase-edit' )( require( './wikibase-edit.config' ) );
+const createEntities = require('./create-entities');
 
 let batchId = 1;
 
@@ -50,26 +50,11 @@ http.createServer(function (req, res) {
                 return Promise.reject(err);
             }
             const numEntities = 20;
-            const entities = [];
-
-            for (let i = 1; i <= numEntities; ++i) {
-                const { entity } = await wbEdit.entity.create({
-                    type: 'item',
-                    labels: {
-                        'en': new Date().toISOString()
-                    },
-                    descriptions: {
-                        'en': new Date().toDateString() + new Date().toISOString()
-                    }
-                });
-
-                console.log('created item id', entity.id)
-                entities.push(entity.id)
-            }
+            const entities = await createEntities(numEntities);
 
             responseObject = {
                 'id': batchId++,
-                'entityIds': entities.join(','),
+                'entityIds': entities.map(e => e.id).join(','),
                 'wiki': {
                     'domain': process.env.API_WIKIBASE_DOMAIN,
                     'wiki_queryservice_namespace': {
