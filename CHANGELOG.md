@@ -1,5 +1,9 @@
 # queryservice-updater
 
+## 0.3.84_3.12 - December 2023
+
+- T352656: Support running updater as one off command with command line args
+
 ## 0.3.84_3.11 - November 2023
 
 - T352157: Support running loop forever and without forced exit
