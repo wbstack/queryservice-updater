@@ -1,0 +1,63 @@
+name: Docker test run as service
+
+on:
+  push:
+    branches:
+      - 'main'
+    tags:
+      - '*'
+  pull_request:
+
+jobs:
+  docker-test:
+    env:
+      COMPOSE_ARGS: -f docker-compose.yml -f docker-compose.ci.service.yml
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: docker-compose up
+        run: docker-compose ${{ env.COMPOSE_ARGS }} up -d
+
+      - name: Wait for some things to be inserted
+        uses: nick-invision/retry@v2
+        with:
+          timeout_minutes: 5
+          max_attempts: 50
+          retry_wait_seconds: 2
+          warning_on_retry: false
+          command: |
+            num_lines=$(docker-compose ${{ env.COMPOSE_ARGS }} logs wdqs-updater | grep "org.wikidata.query.rdf.tool.Updater - Polled" | wc -l)
+            if [ $num_lines -gt 9 ]; then
+              exit 0;
+            else
+              echo "Found $num_lines lines, retrying."
+              exit 1;
+            fi
+      - name: Check that Mock API server did not fail assertions
+        run: |
+          num_failures=$(docker-compose ${{ env.COMPOSE_ARGS }} logs api | grep "\[FAILURE\]" | wc -l)
+          echo "Found $num_failures failures."
+          if [ $num_failures -gt 0 ];
+            then exit 1
+          fi
+      - name: Make a sparql request
+        run: |
+          NUM_BINDINGS=$(curl 'http://localhost:9999/bigdata/namespace/wdq/sparql' -H 'Accept: application/sparql-results+json' --data-raw 'query=SELECT+*+WHERE%7B+%3Fs+%3Fp+%3Fo+%7D' | jq '.results.bindings | length')
+          # should be plenty more than 100
+          if [[ "$NUM_BINDINGS" -lt 100 ]]; then
+              exit 1
+          fi
+      - name: docker-compose logs > output.log
+        if: always()
+        run: docker-compose ${{ env.COMPOSE_ARGS }} logs --no-color > "output.log"
+
+      - name: Archive output.log
+        uses: actions/upload-artifact@v2
+        if: always()
+        with:
+          name: DockerTestLog
+          if-no-files-found: error
+          path: output.log
+

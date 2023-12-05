@@ -1,4 +1,4 @@
-name: Docker test
+name: Docker test run as command
 
 on:
   push:
@@ -11,7 +11,7 @@ on:
 jobs:
   docker-test:
     env:
-      COMPOSE_ARGS: -f docker-compose.yml -f docker-compose.ci.yml
+      COMPOSE_ARGS: -f docker-compose.yml -f docker-compose.ci.command.yml
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -20,28 +20,28 @@ jobs:
       - name: docker-compose up
         run: docker-compose ${{ env.COMPOSE_ARGS }} up -d
 
-      - name: Wait for some things to be inserted
-        uses: nick-invision/retry@v2
-        with:
-          timeout_minutes: 5
-          max_attempts: 50
-          retry_wait_seconds: 2
-          warning_on_retry: false
-          command: |
-            num_lines=$(docker-compose ${{ env.COMPOSE_ARGS }} logs wdqs-updater | grep "org.wikidata.query.rdf.tool.Updater - Polled" | wc -l)
-            if [ $num_lines -gt 9 ]; then
-              exit 0;
-            else
-              echo "Found $num_lines lines, retrying."
-              exit 1;
-            fi
-      - name: Check that Mock API server did not fail assertions
+      - name: Create entities
         run: |
-          num_failures=$(docker-compose ${{ env.COMPOSE_ARGS }} logs api | grep "\[FAILURE\]" | wc -l)
-          echo "Found $num_failures failures."
-          if [ $num_failures -gt 0 ];
-            then exit 1
-          fi
+          docker compose exec api /usr/src/app/seeder.js 40
+
+      - name: Run updater
+        run: |
+          docker compose exec wdqs-updater /wdqsup/runUpdateWbStack.sh -- \
+            --wikibaseHost wikibase.svc \
+            --ids Q1,Q2,Q3,Q4,Q5,Q6,Q7,Q8,Q9,Q10,Q11,Q12,Q13,Q14,Q15 \
+            --entityNamespaces 120,122,146 \
+            --sparqlUrl http://wdqs.svc:9999/bigdata/namespace/wdq/sparql \
+            --wikibaseScheme http \
+            --conceptUri https://wikibase.svc
+
+          docker compose exec wdqs-updater /wdqsup/runUpdateWbStack.sh -- \
+            --wikibaseHost wikibase.svc \
+            --ids Q16,Q17,Q18,Q19,Q20,Q21,Q22,Q23,Q24,Q25,Q26,Q27,Q28,Q29,Q30 \
+            --entityNamespaces 120,122,146 \
+            --sparqlUrl http://wdqs.svc:9999/bigdata/namespace/wdq/sparql \
+            --wikibaseScheme http \
+            --conceptUri https://wikibase.svc
+
       - name: Make a sparql request
         run: |
           NUM_BINDINGS=$(curl 'http://localhost:9999/bigdata/namespace/wdq/sparql' -H 'Accept: application/sparql-results+json' --data-raw 'query=SELECT+*+WHERE%7B+%3Fs+%3Fp+%3Fo+%7D' | jq '.results.bindings | length')
