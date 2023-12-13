@@ -118,6 +118,7 @@ public final class WbStackUpdate {
 
     public static void setCommandValuesFromEnvOrDie() {
         wbStackUpdaterThreadCount = Integer.parseInt(System.getenv().getOrDefault("WBSTACK_THREAD_COUNT", "10"));
+        wbStackProxyMapIngress = System.getenv("WBSTACK_PROXYMAP_INGRESS");
     }
 
     private static void setSingleUseServicesAndObjects() {
