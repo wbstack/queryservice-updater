@@ -1,5 +1,9 @@
 # queryservice-updater
 
+## 0.3.84_3.13 - December 2023
+
+- Proxy Map parameter needs to be initialized when running as command
+
 ## 0.3.84_3.12 - December 2023
 
 - T352656: Support running updater as one off command with command line args
