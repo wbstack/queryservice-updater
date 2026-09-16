@@ -54,7 +54,7 @@ jobs:
         run: docker-compose ${{ env.COMPOSE_ARGS }} logs --no-color > "output.log"
 
       - name: Archive output.log
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: DockerTestLog
