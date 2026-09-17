@@ -37,7 +37,7 @@ WBSTACK_LOOP_LIMIT=1000000000
 WBSTACK_WIKIBASE_SCHEME=http
 ```
 
-4. Start docker with `docker-compose up`
+4. Start docker with `docker compose up`
 5. As everything has initialized you should be able to run the new configuration.
 6. Every time the fake api gets polled new items will get inserted into wikibase, and the updater will keep running indefinitely.
 7. (Optional) https://visualvm.github.io/ for profiling
@@ -49,7 +49,7 @@ The test CI is running a wikibase instance that gets populated by the `seeder/` 
 When debugging the CI configuration locally you can run
 
 ```sh
-docker-compose -f docker-compose.yml -f docker-compose.ci.yml up
+docker compose -f docker-compose.yml -f docker-compose.ci.yml up
 ```
 
 If changes aren't taking effect you can try removing the image to force a rebuild
