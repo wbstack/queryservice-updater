@@ -21,7 +21,7 @@ jobs:
         run: docker compose ${{ env.COMPOSE_ARGS }} up -d
 
       - name: Wait for some things to be inserted
-        uses: nick-invision/retry@v2
+        uses: nick-invision/retry@v4
         with:
           timeout_minutes: 5
           max_attempts: 50
