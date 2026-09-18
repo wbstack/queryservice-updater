@@ -8,7 +8,7 @@ COPY ./ /tmp
 RUN mvn compile assembly:single
 
 
-FROM eclipse-temurin:8-jdk-alpine
+FROM eclipse-temurin:25-jdk-alpine
 
 LABEL org.opencontainers.image.source="https://github.com/wbstack/queryservice-updater"
 
