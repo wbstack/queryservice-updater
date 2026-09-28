@@ -1,11 +1,12 @@
-FROM maven:3.6.3-jdk-8 as jarjar
+# syntax=docker/dockerfile:1
+FROM maven:3.6.3-jdk-8 AS jarjar
 
 WORKDIR /tmp
-COPY ./pom.xml /tmp/pom.xml
-RUN mvn clean install
+COPY pom.xml ./
+RUN --mount=type=cache,id=queryservice-updater-m2,target=/root/.m2 mvn --batch-mode --no-transfer-progress dependency:go-offline
 
-COPY ./ /tmp
-RUN mvn compile assembly:single
+COPY . ./
+RUN --mount=type=cache,id=queryservice-updater-m2,target=/root/.m2 mvn --batch-mode --no-transfer-progress compile assembly:single
 
 
 FROM eclipse-temurin:8-jdk-alpine
