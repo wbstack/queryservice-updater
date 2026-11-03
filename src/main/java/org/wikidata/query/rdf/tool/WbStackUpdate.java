@@ -107,7 +107,7 @@ public final class WbStackUpdate {
 
         wbStackProxyMapIngress = System.getenv("WBSTACK_PROXYMAP_INGRESS");
         wbStackApiEndpoint = System.getenv("WBSTACK_API_ENDPOINT_GET_BATCHES");
-        wbStackApiEndpointMarkNotDone = System.getenv("WBSTACK_API_ENDPOINT_MARK_FAILED");
+        wbStackApiEndpointMarkNotDone = System.getenv("WBSTACK_API_ENDPOINT_MARK_NOT_DONE");
         wbStackApiEndpointMarkDone = System.getenv("WBSTACK_API_ENDPOINT_MARK_DONE");
         wbStackSleepBetweenApiCalls = Long.parseLong(System.getenv("WBSTACK_BATCH_SLEEP"));
         wbStackUpdaterThreadCount = Integer.parseInt(System.getenv().getOrDefault("WBSTACK_THREAD_COUNT", "10"));
