@@ -305,8 +305,8 @@ public final class WbStackUpdate {
         return true;
     }
 
-    private static String getProxyMapString( UpdateOptions options ) {
-        if ( wbStackProxyMapIngress == null ) {
+    private static String getProxyMapString(UpdateOptions options) {
+        if (wbStackProxyMapIngress == null) {
             return null;
         }
 
@@ -334,7 +334,7 @@ public final class WbStackUpdate {
             CloseableHttpClient httpClientApache = HttpClientUtils.createHttpClient(
                     poolingConnectionManager,
                     null,
-                    getProxyMapString( options ), // ex: "somename.wiki.opencura.com=platform-nginx.default.svc.cluster.local:8080",
+                    getProxyMapString(options), // ex: "somename.wiki.opencura.com=platform-nginx.default.svc.cluster.local:8080",
                     defaultTimeout
             );
 
